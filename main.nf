@@ -13,24 +13,29 @@ if (params.help) {
     exit(0)
 }
 
+if (params.sample == '') {
+    log.info 'No sample given, aborting!'
+}
+
 ///Add to FN5
 process compute {
-
     input:
         path sample
-        path reference
-        path mask
-        path saves
-    output:
-        path "comparisons.txt"
     script:
         """
-        echo Running FN5!
-        echo "guid1 guid2 7" > comparisons.txt
+        echo \$(pwd)
+        sample_path=\$(pwd)/$sample
+        echo $sample
+        echo "path to the fasta: \$sample_path"
+        cd /FN5
+        echo "DB_PATH=$params.db_path" >> .db
+        echo "bucket=$params.bucket" >> .env
+        python3 run.py --sample \$sample_path
         """
 }
 
 workflow {
     main:
-        compute(params.sample, params.reference, params.mask, params.saves);
+        compute(params.sample)
 }
+
