@@ -292,6 +292,7 @@ process clear_batch{
     input:
         path lock
         path batch
+        path all
         path done_processing
     output:
         path cleared_batch
@@ -316,6 +317,8 @@ process clear_batch{
         cat \$original_path/$batch
 
         python3 batch-process.py --guids_to_clear \$original_path/$batch
+
+        curl -X PUT --data-binary "@\$original_path/$all" $params.bucket/$params.species/all.tar.gz
 
         touch \$original_path/cleared_batch
         """
@@ -358,7 +361,7 @@ workflow {
 
         done = add_to_db(to_process, comparisons, lock)
 
-        batch_cleared = clear_batch(lock, batch, done)
+        batch_cleared = clear_batch(lock, batch, all, done)
 
         release_lock(lock, batch_cleared)
 }
