@@ -10,6 +10,20 @@ ANSI_RESET = "\033[0m"
 
 //Setup so --help triggers the help message
 if (params.help) {
+    log.info """
+========================================================================
+Find Neighbour 5
+
+Fast SNP distance calculation from disk.
+
+Parameters used:
+------------------------------------------------------------------------
+--db_path   $params.db_path
+--bucket    $params.bucket
+--sample    $params.sample
+--species   $params.species
+"""
+.stripIndent()
     exit(0)
 }
 
@@ -17,6 +31,25 @@ if (params.sample == '') {
     log.info 'No sample given, aborting!'
     exit(1)
 }
+
+log.info """
+========================================================================
+Find Neighbour 5
+
+Parameters used:
+------------------------------------------------------------------------
+--db_path   $params.db_path
+--bucket    $params.bucket
+--sample    $params.sample
+--species   $params.species
+
+Runtime data:
+------------------------------------------------------------------------
+Running with profile  ${ANSI_GREEN}${workflow.profile}${ANSI_RESET}
+Running as user       ${ANSI_GREEN}${workflow.userName}${ANSI_RESET}
+Launch directory      ${ANSI_GREEN}${workflow.launchDir}${ANSI_RESET}
+"""
+.stripIndent()
 
 //Ref compress sample & push to bucket
 process reference_compress{
