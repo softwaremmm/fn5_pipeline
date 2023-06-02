@@ -37,12 +37,11 @@ process reference_compress{
         echo \$guid
         echo This is for $params.species
 
-        #TODO: Upload this to bucket...
-        tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz sample-out/*
-        curl -X PUT --data-binary "@\$(pwd)/sample-out/\$(echo \$guid).tar.gz" $params.bucket/$params.species/to_process/\$(echo \$guid).tar.gz
+        cd sample-out
+        tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
+        curl -X PUT --data-binary "@\$(pwd)/\$(echo \$guid).tar.gz" $params.bucket/$params.species/to_process/\$(echo \$guid).tar.gz
 
         echo \$guid > \$original_path/guid
-        cat \$original_path/guid
         """ 
 }
 
@@ -162,7 +161,7 @@ process get_saves{
 
         #Fetch the batch
         for f in \$(cat $batch); do
-            echo Getting \$f
+            echo Getting to_process/\$f.tar.gz
             time curl -SsL $params.bucket/$params.species/to_process/\$f.tar.gz > to_process/\$f.tar.gz
         done
 
@@ -187,54 +186,127 @@ process process_batch{
         fi
 
         original_path=\$(pwd)
+        ls -lhat
+        echo
         echo "Started in \$original_path"
-        cd /FN5
-        mkdir -p batch
-        cd batch
 
+        mkdir -p /FN5/batch
+        mkdir -p /FN5/saves
+
+        #Extract existing saves
+        tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
+        ls /FN5/saves | wc -l
+
+        #Decompress all of the samples in this batch
         to_process=\$(echo $to_process)
-        
         for f in \$(echo \${to_process});
         do
-            #TODO: Figure out why the filepath doesn't join here...
-            echo \$f
-            echo \$original_path
-            echo -e \$original_path/\$f
-            echo -e \$original_path /\$f
-            echo -e \$original_path/ \$f
-            echo -e "aa \${original_path}/\$f"
-            tar --use-compress-program=pigz -xf \$original_path/\$f
-            ls
+            tar --use-compress-program=pigz -xf \$f -C /FN5/batch
+            find /FN5/batch
         done
 
-        exit 1
+        cd /FN5
 
+        ./fn5 --add_batch batch --cutoff 20 > \$original_path/comparisons.txt
+
+        echo From file
+        cat \$original_path/comparisons.txt
+        cat \$original_path/comparisons.txt | wc -l
         """
 }
 
 //Add to DB
-
-//Update bucket
-
-//Release lock
-
-
-
-
-///Add to FN5
-process compute {
+process add_to_db{
     input:
-        path sample
+        path to_process
+        path comparisons
+        path lock
+    output:
+        path done
     script:
         """
-        echo \$(pwd)
-        sample_path=\$(pwd)/$sample
-        echo $sample
-        echo "path to the fasta: \$sample_path"
+        if ! [ -s $lock ]; then
+            #Sample in batch rather than lock table, so exit
+            touch done
+            exit 0
+        fi
+
+        original_path=\$(pwd)
+
+        #Checking for orphan nodes. Add a -1 record for these
+        to_process=\$(echo $to_process)
+        for f in \$(echo \${to_process});
+        do
+            guid=\$(python3 -c "print('\$f'.replace('.tar.gz', ''))")
+            if [ \$(cat $comparisons | grep \$guid | wc -l) -eq 0  ]; then
+                echo \$guid \$guid -1 >> $comparisons
+            fi
+        done
+
+        #Add to DB
         cd /FN5
+        #Make sure the DB is setup
         echo "DB_PATH=$params.db_path" >> .db
-        echo "bucket=$params.bucket" >> .env
-        python3 run.py --sample \$sample_path
+        python3 add-to-db.py --comparisons \$original_path/comparisons.txt
+
+        #Add dummy output
+        touch \$original_path/done
+        """
+}
+
+//Update bucket
+process clear_batch{
+    input:
+        path lock
+        path batch
+        path done_processing
+    output:
+        path cleared_batch
+    script:
+        """
+        if ! [ -s $lock ]; then
+            #Sample in batch rather than lock table, so exit
+            touch cleared_batch
+            exit 0
+        fi
+
+        original_path=\$(pwd)
+
+
+        #TODO: Delete samples from bucket
+        #curl -X DELETE .. doesn't seem to work
+
+        cd /FN5
+        #Make sure the DB is setup
+        echo "DB_PATH=$params.db_path" >> .db
+
+        cat \$original_path/$batch
+
+        python3 batch-process.py --guids_to_clear \$original_path/$batch
+
+        touch \$original_path/cleared_batch
+        """
+}
+
+//Release lock
+process release_lock{
+    input:
+        path lock
+        path cleared_batch
+    script:
+        """
+        if ! [ -s $lock ]; then
+            #Sample in batch rather than lock table, so exit
+            exit 0
+        fi
+
+        original_path=\$(pwd)
+
+        cd /FN5
+        #Make sure the DB is setup
+        echo "DB_PATH=$params.db_path" >> .db
+
+        python3 release-lock.py --lock \$(cat \$original_path/$lock)
         """
 }
 
@@ -249,7 +321,12 @@ workflow {
         batch = get_batch(guid, lock, check)
         (all, to_process) = get_saves(lock, batch, check)
 
-        process_batch(lock, all, to_process)
+        comparisons = process_batch(lock, all, to_process)
 
+        done = add_to_db(to_process, comparisons, lock)
+
+        batch_cleared = clear_batch(lock, batch, done)
+
+        release_lock(lock, batch_cleared)
 }
 
