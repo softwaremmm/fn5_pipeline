@@ -7,50 +7,6 @@ nextflow.enable.dsl=2
 ANSI_GREEN = "\033[1;32m"
 ANSI_RESET = "\033[0m"
 
-
-//Setup so --help triggers the help message
-if (params.help) {
-    log.info """
-========================================================================
-Find Neighbour 5
-
-Fast SNP distance calculation from disk.
-
-Parameters used:
-------------------------------------------------------------------------
---db_path   $params.db_path
---bucket    $params.bucket
---sample    $params.sample
---species   $params.species
-"""
-.stripIndent()
-    exit(0)
-}
-
-if (params.sample == '') {
-    log.info 'No sample given, aborting!'
-    exit(1)
-}
-
-log.info """
-========================================================================
-Find Neighbour 5
-
-Parameters used:
-------------------------------------------------------------------------
---db_path   $params.db_path
---bucket    $params.bucket
---sample    $params.sample
---species   $params.species
-
-Runtime data:
-------------------------------------------------------------------------
-Running with profile  ${ANSI_GREEN}${workflow.profile}${ANSI_RESET}
-Running as user       ${ANSI_GREEN}${workflow.userName}${ANSI_RESET}
-Launch directory      ${ANSI_GREEN}${workflow.launchDir}${ANSI_RESET}
-"""
-.stripIndent()
-
 //Ref compress sample & push to bucket
 process reference_compress{
     input:
@@ -386,8 +342,52 @@ process release_lock{
         """
 }
 
-workflow {
+//Split into separate workflow to enable importing
+workflow find_neighbour_5{
     main:
+
+        //Setup so --help triggers the help message
+        if (params.help) {
+            log.info """
+            ========================================================================
+            Find Neighbour 5
+
+            Fast SNP distance calculation from disk.
+
+            Parameters:
+            ------------------------------------------------------------------------
+            --db_path   DB connection string of the format mysql://<user>:<password>@<host>:<port>/<db name>
+            --bucket    Pre authenticated request URL for a given bucket
+            --sample    Path to the sample's FASTA file
+            --species   Name of the species this belongs to. Default = 'tb'
+            """
+            .stripIndent()
+            exit(0)
+        }
+
+        if (params.sample == '') {
+            log.info 'No sample given, aborting!'
+            exit(1)
+        }
+        log.info """
+        ========================================================================
+        Find Neighbour 5
+
+        Parameters used:
+        ------------------------------------------------------------------------
+        --db_path   $params.db_path
+        --bucket    $params.bucket
+        --sample    $params.sample
+        --species   $params.species
+
+        Runtime data:
+        ------------------------------------------------------------------------
+        Running with profile  ${ANSI_GREEN}${workflow.profile}${ANSI_RESET}
+        Running as user       ${ANSI_GREEN}${workflow.userName}${ANSI_RESET}
+        Launch directory      ${ANSI_GREEN}${workflow.launchDir}${ANSI_RESET}
+        """
+        .stripIndent()
+
         guid = reference_compress(params.sample)
         lock = check_lock(guid)
 
@@ -405,5 +405,10 @@ workflow {
         batch_removed = remove_batch(lock, batch, done)
 
         release_lock(lock, cleaned_up, batch_removed)
+}
+
+workflow{
+    main:
+        find_neighbour_5()
 }
 
