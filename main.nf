@@ -23,8 +23,6 @@ process reference_compress{
         mkdir -p sample-out
 
         guid=\$(./fn5 --reference_compress \$sample_path --saves_dir sample-out)
-        echo \$guid
-        echo This is for $params.species
 
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
@@ -70,7 +68,6 @@ process wait_for_lock{
             exit 0
         fi
 
-        echo Running wait for lock
         original_path=\$(pwd)
         lock=\$(cat $lock)
 
@@ -80,7 +77,6 @@ process wait_for_lock{
         echo "DB_PATH=$params.db_path" >> .db
 
         #Wait for the lock
-        echo Lock were waiting for is: \$lock
         python3 db/wait-for-lock.py --lock \$lock
         touch \$original_path/ok
         """
@@ -142,19 +138,14 @@ process get_saves{
 
         original_path=\$(pwd)
 
-        echo Getting all
-        time curl -SsL $params.bucket/$params.species/all.tar.gz > all.tar.gz
-        echo
+        curl -SsL $params.bucket/$params.species/all.tar.gz > all.tar.gz
 
         mkdir -p to_process
 
         #Fetch the batch
         for f in \$(cat $batch); do
-            echo Getting to_process/\$f.tar.gz
-            time curl -SsL $params.bucket/$params.species/to_process/\$f.tar.gz > to_process/\$f.tar.gz
+            curl -SsL $params.bucket/$params.species/to_process/\$f.tar.gz > to_process/\$f.tar.gz
         done
-
-        ls to_process
         """
 }
 
@@ -175,32 +166,23 @@ process process_batch{
         fi
 
         original_path=\$(pwd)
-        ls -lhat
-        echo
-        echo "Started in \$original_path"
 
         mkdir -p /FN5/batch
         mkdir -p /FN5/saves
 
         #Extract existing saves
         tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
-        ls /FN5/saves | wc -l
 
         #Decompress all of the samples in this batch
         to_process=\$(echo $to_process)
         for f in \$(echo \${to_process});
         do
             tar --use-compress-program=pigz -xf \$f -C /FN5/batch
-            find /FN5/batch
         done
 
         cd /FN5
 
         ./fn5 --add_batch batch --cutoff 20 > \$original_path/comparisons.txt
-
-        echo From file
-        cat \$original_path/comparisons.txt
-        cat \$original_path/comparisons.txt | wc -l
         """
 }
 
