@@ -288,27 +288,24 @@ process add_to_db{
 }
 
 //Update bucket
-process clear_batch{
+process clean_up{
     input:
         path lock
         path batch
         path all
         path done_processing
     output:
-        path cleared_batch
+        path cleaned_up
     script:
         """
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
-            touch cleared_batch
+            touch cleaned_up
             exit 0
         fi
 
         original_path=\$(pwd)
 
-
-        #TODO: Delete samples from bucket
-        #curl -X DELETE .. doesn't seem to work
 
         cd /FN5
         #Make sure the DB is setup
@@ -318,10 +315,52 @@ process clear_batch{
 
         python3 batch-process.py --guids_to_clear \$original_path/$batch
 
+        #Update the saves tarball
         curl -X PUT --data-binary "@\$original_path/$all" $params.bucket/$params.species/all.tar.gz
 
-        touch \$original_path/cleared_batch
+        touch \$original_path/cleaned_up
         """
+}
+
+//Remove the batch's save files separately due to needing extra auth
+//Using a bucket PAR like other operations doesn't work here as DELETE is not supported with PARs
+//So this requires Nextflow secrets setup for OCI CLI auth (~/oci/config and ~/.oci/oci_api_key.pem) 
+process remove_batch{
+    secret 'OCI_CONFIG'
+    secret 'OCI_KEY'
+    input:
+        path lock
+        path batch
+        path done_processing
+    output:
+        path batch_removed
+    script:
+        """
+        if ! [ -s $lock ]; then
+            #Sample in batch rather than lock table, so exit
+            touch batch_removed
+            exit 0
+        fi
+
+        echo \$OCI_CONFIG | base64 -d > ~/.oci/config
+        echo \$OCI_KEY | base64 -d > ~/.oci/oci_api_key.pem
+        export OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING=True
+
+        #Use the PAR to pull out the namespace and the bucket
+        #PAR should be of form https://<url>/p/<token>/n/<namespace>/b/<bucket name>/o
+        namespace=\$(python3 -c "print('$params.bucket'.split('/')[6])")
+        bucket=\$(python3 -c "print('$params.bucket'.split('/')[8])")
+
+        #Build a string of `--include <path in bucket> --include <another path> --include ...` to enable a single `bulk_delete` call
+        #This is siginificantly faster than calling `bulk_delete` on individual samples
+        python3 -c "print(' --include', ' --include '.join(['$params.species/to_process/'+line.replace('\\n','')+'.tar.gz' for line in open('$batch')]))" > to_delete.txt     
+
+        oci os object bulk-delete -ns \$namespace -bn \$bucket \$(cat to_delete.txt) --force 
+
+        touch batch_removed
+
+        """
+    
 }
 
 //Release lock
@@ -329,6 +368,7 @@ process release_lock{
     input:
         path lock
         path cleared_batch
+        path removed_batch
     script:
         """
         if ! [ -s $lock ]; then
@@ -361,8 +401,9 @@ workflow {
 
         done = add_to_db(to_process, comparisons, lock)
 
-        batch_cleared = clear_batch(lock, batch, all, done)
+        cleaned_up = clean_up(lock, batch, all, done)
+        batch_removed = remove_batch(lock, batch, done)
 
-        release_lock(lock, batch_cleared)
+        release_lock(lock, cleaned_up, batch_removed)
 }
 

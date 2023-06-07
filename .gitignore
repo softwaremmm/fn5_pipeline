@@ -2,3 +2,8 @@
 trace*.txt
 work
 .nextflow
+
+#Keep out testing/debugging files
+run_batch.sh
+*.html
+*.txt
