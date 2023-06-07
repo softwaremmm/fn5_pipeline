@@ -1,7 +1,5 @@
 # fn5_pipeline
-Nextflow wrapper for FN5
-
-Currently functional, but far from optimal
+Nextflow wrapper for FN5. Enables auto-queuing and auto-batching of samples for performance gains.
 
 ## Running locally with docker
 ```
