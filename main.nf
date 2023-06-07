@@ -51,7 +51,7 @@ process check_lock{
         echo "DB_PATH=$params.db_path" >> .db
         
         #Add the lock
-        python3 add_lock.py --guid \$guid > \$original_path/lock
+        python3 db/add_lock.py --guid \$guid > \$original_path/lock
         """
 }
 
@@ -81,7 +81,7 @@ process wait_for_lock{
 
         #Wait for the lock
         echo Lock were waiting for is: \$lock
-        python3 wait-for-lock.py --lock \$lock
+        python3 db/wait-for-lock.py --lock \$lock
         touch \$original_path/ok
         """
 }
@@ -111,7 +111,7 @@ process get_batch{
         echo "DB_PATH=$params.db_path" >> .db
 
         #Get the batch details
-        python3 batch-process.py --get --id \$guid
+        python3 db/batch-process.py --get --id \$guid
         #Add own guid too
         echo \$guid >> \$(echo \$guid)_batch_guids.txt
 
@@ -236,7 +236,7 @@ process add_to_db{
         cd /FN5
         #Make sure the DB is setup
         echo "DB_PATH=$params.db_path" >> .db
-        python3 add-to-db.py --comparisons \$original_path/comparisons.txt
+        python3 db/add-to-db.py --comparisons \$original_path/comparisons.txt
 
         #Add dummy output
         touch \$original_path/done
@@ -269,7 +269,7 @@ process clean_up{
 
         cat \$original_path/$batch
 
-        python3 batch-process.py --guids_to_clear \$original_path/$batch
+        python3 db/batch-process.py --guids_to_clear \$original_path/$batch
 
         #Update the saves tarball
         curl -X PUT --data-binary "@\$original_path/$all" $params.bucket/$params.species/all.tar.gz
@@ -338,7 +338,7 @@ process release_lock{
         #Make sure the DB is setup
         echo "DB_PATH=$params.db_path" >> .db
 
-        python3 release-lock.py --lock \$(cat \$original_path/$lock)
+        python3 db/release-lock.py --lock \$(cat \$original_path/$lock)
         """
 }
 
