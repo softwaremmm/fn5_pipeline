@@ -157,6 +157,7 @@ process process_batch{
         path to_process
     output:
         path "comparisons.txt"
+        path "all.tar.gz"
     script:
         """
         if ! [ -s $lock ]; then
@@ -183,6 +184,10 @@ process process_batch{
         cd /FN5
 
         ./fn5 --add_batch batch --cutoff 20 > \$original_path/comparisons.txt
+
+        mv batch/* saves
+
+        tar --use-compress-program=pigz -cf \$original_path/all.tar.gz saves
         """
 }
 
@@ -379,11 +384,11 @@ workflow find_neighbour_5{
         batch = get_batch(guid, lock, check)
         (all, to_process) = get_saves(lock, batch, check)
 
-        comparisons = process_batch(lock, all, to_process)
+        (comparisons, all2) = process_batch(lock, all, to_process)
 
         done = add_to_db(to_process, comparisons, lock)
 
-        cleaned_up = clean_up(lock, batch, all, done)
+        cleaned_up = clean_up(lock, batch, all2, done)
         batch_removed = remove_batch(lock, batch, done)
 
         release_lock(lock, cleaned_up, batch_removed)
