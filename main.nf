@@ -24,6 +24,14 @@ process reference_compress{
 
         guid=\$(./fn5 --reference_compress \$sample_path --saves_dir sample-out)
 
+        #Check if this was a QC fail or not
+        if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
+            #QC fail should pass onto check_lock
+            #Then it should be recorded in the distances table, and no lock kept
+            echo "\$guid" > \$original_path/guid
+            exit 0
+        fi
+
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
         curl -X PUT --data-binary "@\$(pwd)/\$(echo \$guid).tar.gz" $params.bucket/$params.species/to_process/\$(echo \$guid).tar.gz
@@ -47,7 +55,19 @@ process check_lock{
 
         #Make sure the DB is setup
         echo "DB_PATH=$params.db_path" >> .db
-        
+
+        #If this sample failed QC, mark it as failed in the distances table
+        #And provide an empty lock to skip rest of computation
+        if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
+            g=\$(echo "\$guid" | tail -n 1)
+            echo \$g 
+            echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
+            python3 db/add-to-db.py --comparisons qc_fail_comparison.txt
+            
+            touch \$original_path/lock
+            exit 0
+        fi
+
         #Add the lock
         python3 db/add_lock.py --guid \$guid > \$original_path/lock
         """
