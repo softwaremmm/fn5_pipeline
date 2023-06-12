@@ -38,6 +38,10 @@ process reference_compress{
 
         echo \$guid > \$original_path/guid
         """ 
+    stub:
+        """
+        touch guid
+        """
 }
 
 //Check lock
@@ -71,6 +75,10 @@ process check_lock{
         #Add the lock
         python3 db/add_lock.py --guid \$guid > \$original_path/lock
         """
+    stub:
+        """
+        touch lock
+        """
 }
 
 //Wait for lock
@@ -99,6 +107,10 @@ process wait_for_lock{
         #Wait for the lock
         python3 db/wait-for-lock.py --lock \$lock
         touch \$original_path/ok
+        """
+    stub:
+        """
+        touch ok
         """
 }
 
@@ -134,6 +146,10 @@ process get_batch{
         #Move to original dir for output
         mv \$(echo \$guid)_batch_guids.txt \$original_path/batch_guids.txt
         """
+    stub:
+        """
+        touch batch_guids.txt
+        """
 
 }
 
@@ -166,6 +182,12 @@ process get_saves{
         for f in \$(cat $batch); do
             curl -SsL $params.bucket/$params.species/to_process/\$f.tar.gz > to_process/\$f.tar.gz
         done
+        """
+    stub:
+        """
+        touch all.tar.gz
+        mkdir -p to_process
+        touch to_process/filename.tar.gz
         """
 }
 
@@ -209,6 +231,11 @@ process process_batch{
 
         tar --use-compress-program=pigz -cf \$original_path/all.tar.gz saves
         """
+    stub:
+        """
+        touch comparisons.txt
+        touch all.tar.gz
+        """
 }
 
 //Add to DB
@@ -248,6 +275,10 @@ process add_to_db{
         #Add dummy output
         touch \$original_path/done
         """
+    stub:
+        """
+        touch done
+        """
 }
 
 //Update bucket
@@ -282,6 +313,10 @@ process clean_up{
         curl -X PUT --data-binary "@\$original_path/$all" $params.bucket/$params.species/all.tar.gz
 
         touch \$original_path/cleaned_up
+        """
+    stub:
+        """
+        touch cleaned_up
         """
 }
 
@@ -323,7 +358,10 @@ process remove_batch{
         touch batch_removed
 
         """
-    
+    stub:
+        """
+        touch batch_removed
+        """
 }
 
 //Release lock
@@ -346,6 +384,10 @@ process release_lock{
         echo "DB_PATH=$params.db_path" >> .db
 
         python3 db/release-lock.py --lock \$(cat \$original_path/$lock)
+        """
+    stub:
+        """
+        echo lock released
         """
 }
 
