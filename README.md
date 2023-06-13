@@ -2,12 +2,12 @@
 Nextflow wrapper for FN5. Enables auto-queuing and auto-batching of samples for performance gains.
 
 ## Running locally with docker
+Requires an API to be running to handle database and bucket operations
 ```
-sudo nextflow run . -profile docker -latest --db_path <db connection string> --bucket <bucket PAR> --sample <fasta path>
+sudo nextflow run . -profile docker -latest --api_url <api URL> --sample <fasta path>
 ```
 Where:
-* `<db connection string>` is the connection URL. Of the format `mysql://<user>:<password>@<url>:<port>/<db name>`
-* `<bucket PAR>` is the pre-authenticated request URL for the save bucket
+* `<api URL>` is the URL for the API
 * `<fasta path>` is the full (absolute) path to a sample's FASTA file  
 
 ## Deleting from buckets

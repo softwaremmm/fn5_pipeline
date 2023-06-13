@@ -34,7 +34,15 @@ process reference_compress{
 
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
-        curl -X PUT --data-binary "@\$(pwd)/\$(echo \$guid).tar.gz" $params.bucket/$params.species/to_process/\$(echo \$guid).tar.gz
+
+        echo \$guid.tar.gz
+        ls -lhat
+        
+        curl -SsL --fail --show-error -X 'POST' \
+            "$params.api_url/api/relatedness/$params.species/upload?path=to_process/\$(echo \$guid).tar.gz" \
+            -H 'accept: application/json' \
+            -H 'Content-Type: multipart/form-data' \
+            -F "file=@\$(echo \$guid).tar.gz;type=application/gzip"
 
         echo \$guid > \$original_path/guid
         """ 
@@ -57,23 +65,34 @@ process check_lock{
 
         cd /FN5
 
-        #Make sure the DB is setup
-        echo "DB_PATH=$params.db_path" >> .db
-
         #If this sample failed QC, mark it as failed in the distances table
         #And provide an empty lock to skip rest of computation
         if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
             g=\$(echo "\$guid" | tail -n 1)
             echo \$g 
             echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
-            python3 db/add-to-db.py --comparisons qc_fail_comparison.txt
+
+            curl -SsL --fail --show-error -X 'POST' \
+                '$params.api_url/api/relatedness/$params.species/db/add_distances' \
+                -H 'accept: application/json' \
+                -H 'Content-Type: multipart/form-data' \
+                -F 'file=@qc_fail_comparison.txt;type=text/plain'
             
             touch \$original_path/lock
             exit 0
         fi
 
         #Add the lock
-        python3 db/add_lock.py --guid \$guid > \$original_path/lock
+        curl -SsL --fail --show-error -X 'GET' \
+            '$params.api_url/api/relatedness/$params.species/db/test10/check_lock' \
+            -H 'accept: application/json' | jq ".lock" | tr -d \\" > \$original_path/lock
+
+        #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
+        #Catch this and make it empty
+        echo -e "" > null_byte.txt
+        #This needs the `||` clause or it exits with an error 
+        cmp --silent \$original_path/lock null_byte.txt && \$(rm \$original_path/lock && touch \$original_path/lock) || cat \$original_path/lock
+
         """
     stub:
         """
@@ -99,13 +118,19 @@ process wait_for_lock{
         original_path=\$(pwd)
         lock=\$(cat $lock)
 
-        cd /FN5
+        waiting=1
+        while [ \$waiting -eq 1 ];
+        do
+            #Use the API to get the next lock in the table
+            curl -SsL --fail --show-error -X 'GET' \
+                '$params.api_url/api/relatedness/$params.species/db/next_lock' \
+                -H 'accept: application/json' | jq ".lock" > next_lock.txt
 
-        #Make sure the DB is setup
-        echo "DB_PATH=$params.db_path" >> .db
+            #Compare the outputs, if equal, break from the loop, else sleep and try again
+            cmp --silent $lock next_lock.txt && waiting=2 || sleep 1
+        done
 
         #Wait for the lock
-        python3 db/wait-for-lock.py --lock \$lock
         touch \$original_path/ok
         """
     stub:
@@ -133,18 +158,13 @@ process get_batch{
         original_path=\$(pwd)
         guid=\$(cat $guid)
 
-        cd /FN5
+        #Get guids for this batch
+        curl -SsL --fail --show-error -X 'GET' \
+            '$params.api_url/api/relatedness/$params.species/db/get_batch' \
+            -H 'accept: application/json' | jq ".batch[]" | tr -d \\" > batch_guids.txt
 
-        #Make sure the DB is setup
-        echo "DB_PATH=$params.db_path" >> .db
-
-        #Get the batch details
-        python3 db/batch-process.py --get --id \$guid
         #Add own guid too
-        echo \$guid >> \$(echo \$guid)_batch_guids.txt
-
-        #Move to original dir for output
-        mv \$(echo \$guid)_batch_guids.txt \$original_path/batch_guids.txt
+        echo \$guid >> batch_guids.txt
         """
     stub:
         """
@@ -171,16 +191,17 @@ process get_saves{
             touch to_process/no
             exit 0
         fi
-
-        original_path=\$(pwd)
-
-        curl -SsL $params.bucket/$params.species/all.tar.gz > all.tar.gz
+        curl -SsL --fail --show-error -X 'GET' \
+            '$params.api_url/api/relatedness/$params.species/download?path=all.tar.gz' \
+            -H 'accept: application/gzip' > all.tar.gz
 
         mkdir -p to_process
 
         #Fetch the batch
         for f in \$(cat $batch); do
-            curl -SsL $params.bucket/$params.species/to_process/\$f.tar.gz > to_process/\$f.tar.gz
+            curl -SsL --fail --show-error -X 'GET' \
+                "$params.api_url/api/relatedness/$params.species/download?path=to_process/\$f.tar.gz" \
+                -H 'accept: application/gzip' > to_process/\$f.tar.gz
         done
         """
     stub:
@@ -267,10 +288,12 @@ process add_to_db{
         done
 
         #Add to DB
-        cd /FN5
-        #Make sure the DB is setup
-        echo "DB_PATH=$params.db_path" >> .db
-        python3 db/add-to-db.py --comparisons \$original_path/comparisons.txt
+
+        curl --fail --show-error -X 'POST' \
+            '$params.api_url/api/relatedness/$params.species/db/add_distances' \
+            -H 'accept: application/json' \
+            -H 'Content-Type: multipart/form-data' \
+            -F "file=@$comparisons;type=text/plain"
 
         #Add dummy output
         touch \$original_path/done
@@ -298,21 +321,21 @@ process clean_up{
             exit 0
         fi
 
-        original_path=\$(pwd)
 
-
-        cd /FN5
-        #Make sure the DB is setup
-        echo "DB_PATH=$params.db_path" >> .db
-
-        cat \$original_path/$batch
-
-        python3 db/batch-process.py --guids_to_clear \$original_path/$batch
+        time curl -SsL --fail --show-error -X 'POST' \
+            '$params.api_url/api/relatedness/$params.species/db/clear_batch' \
+            -H 'accept: application/json' \
+            -H 'Content-Type: multipart/form-data' \
+            -F 'file=@$batch;type=text/plain'
 
         #Update the saves tarball
-        curl -X PUT --data-binary "@\$original_path/$all" $params.bucket/$params.species/all.tar.gz
-
-        touch \$original_path/cleaned_up
+        time curl -SsL --fail --show-error -X 'POST' \
+            "$params.api_url/api/relatedness/$params.species/upload?path=all.tar.gz" \
+            -H 'accept: application/json' \
+            -H 'Content-Type: multipart/form-data' \
+            -F "file=@$all;type=application/gzip"        
+            
+        touch cleaned_up
         """
     stub:
         """
@@ -320,12 +343,7 @@ process clean_up{
         """
 }
 
-//Remove the batch's save files separately due to needing extra auth
-//Using a bucket PAR like other operations doesn't work here as DELETE is not supported with PARs
-//So this requires Nextflow secrets setup for OCI CLI auth (~/oci/config and ~/.oci/oci_api_key.pem) 
 process remove_batch{
-    secret 'OCI_CONFIG'
-    secret 'OCI_KEY'
     input:
         path lock
         path batch
@@ -340,20 +358,18 @@ process remove_batch{
             exit 0
         fi
 
-        echo \$OCI_CONFIG | base64 -d > ~/.oci/config
-        echo \$OCI_KEY | base64 -d > ~/.oci/oci_api_key.pem
-        export OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING=True
+        #Rows of \$batch are <guid>, we need to_process/<guid>/tar.gz for deletion
+        touch fixed_batch.txt
+        for line in \$(cat $batch);
+        do
+            echo -e "to_process/\$line.tar.gz" >> fixed_batch.txt
+        done
 
-        #Use the PAR to pull out the namespace and the bucket
-        #PAR should be of form https://<url>/p/<token>/n/<namespace>/b/<bucket name>/o
-        namespace=\$(python3 -c "print('$params.bucket'.split('/')[6])")
-        bucket=\$(python3 -c "print('$params.bucket'.split('/')[8])")
-
-        #Build a string of `--include <path in bucket> --include <another path> --include ...` to enable a single `bulk_delete` call
-        #This is siginificantly faster than calling `bulk_delete` on individual samples
-        python3 -c "print(' --include', ' --include '.join(['$params.species/to_process/'+line.replace('\\n','')+'.tar.gz' for line in open('$batch')]))" > to_delete.txt     
-
-        oci os object bulk-delete -ns \$namespace -bn \$bucket \$(cat to_delete.txt) --force 
+        curl -SsL --fail --show-error -X 'POST' \
+            "$params.api_url/api/relatedness/$params.species/delete" \
+            -H 'accept: application/json' \
+            -H 'Content-Type: multipart/form-data' \
+            -F "file=@fixed_batch.txt;type=text/plain"
 
         touch batch_removed
 
@@ -377,13 +393,9 @@ process release_lock{
             exit 0
         fi
 
-        original_path=\$(pwd)
-
-        cd /FN5
-        #Make sure the DB is setup
-        echo "DB_PATH=$params.db_path" >> .db
-
-        python3 db/release-lock.py --lock \$(cat \$original_path/$lock)
+        curl --fail --show-error -X 'GET' \
+            "$params.api_url/api/relatedness/$params.species/db/clear_lock?lock=\$(cat lock)" \
+            -H 'accept: application/json'
         """
     stub:
         """
@@ -452,12 +464,13 @@ workflow find_neighbour_5{
 
         cleaned_up = clean_up(lock, batch, all2, done)
         batch_removed = remove_batch(lock, batch, done)
-
+        
         release_lock(lock, cleaned_up, batch_removed)
 }
 
 workflow{
     main:
+        //TODO: Add API token once integrated into GPAS API
         find_neighbour_5()
 }
 
