@@ -84,7 +84,7 @@ process check_lock{
 
         #Add the lock
         curl -SsL --fail --show-error -X 'GET' \
-            '$params.api_url/api/relatedness/$params.species/db/test10/check_lock' \
+            "$params.api_url/api/relatedness/$params.species/db/\$guid/check_lock" \
             -H 'accept: application/json' | jq ".lock" | tr -d \\" > \$original_path/lock
 
         #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
