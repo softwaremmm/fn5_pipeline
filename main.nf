@@ -102,6 +102,7 @@ process check_lock{
 
 //Wait for lock
 process wait_for_lock{
+    errorStrategy 'ignore'
     input:
         path lock
     output:
@@ -141,6 +142,7 @@ process wait_for_lock{
 
 //Get batch
 process get_batch{
+    errorStrategy 'ignore'
     input:
         path guid
         path lock
@@ -175,6 +177,7 @@ process get_batch{
 
 //Pull saves from bucket
 process get_saves{
+    errorStrategy 'ignore'
     input:
         path lock
         path batch
@@ -214,6 +217,7 @@ process get_saves{
 
 //Do comparisons
 process process_batch{
+    errorStrategy 'ignore'
     input:
         path lock
         path all
@@ -261,6 +265,7 @@ process process_batch{
 
 //Add to DB
 process add_to_db{
+    errorStrategy 'ignore'
     input:
         path to_process
         path comparisons
@@ -306,6 +311,7 @@ process add_to_db{
 
 //Update bucket
 process clean_up{
+    errorStrategy 'ignore'
     input:
         path lock
         path batch
@@ -344,6 +350,7 @@ process clean_up{
 }
 
 process remove_batch{
+    errorStrategy 'ignore'
     input:
         path lock
         path batch
