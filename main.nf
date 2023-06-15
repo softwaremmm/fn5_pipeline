@@ -85,7 +85,8 @@ process check_lock{
         #Add the lock
         curl -SsL --fail --show-error -X 'GET' \
             "$params.api_url/api/relatedness/$params.species/db/\$guid/check_lock" \
-            -H 'accept: application/json' | jq ".lock" | tr -d \\" > \$original_path/lock
+            -H 'accept: application/json' > lock.json
+        cat lock.json | jq ".lock" | tr -d \\" > \$original_path/lock
 
         #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
         #Catch this and make it empty
@@ -102,7 +103,6 @@ process check_lock{
 
 //Wait for lock
 process wait_for_lock{
-    errorStrategy 'ignore'
     input:
         path lock
     output:
@@ -125,7 +125,8 @@ process wait_for_lock{
             #Use the API to get the next lock in the table
             curl -SsL --fail --show-error -X 'GET' \
                 '$params.api_url/api/relatedness/$params.species/db/next_lock' \
-                -H 'accept: application/json' | jq ".lock" > next_lock.txt
+                -H 'accept: application/json' > lock.json
+            cat lock.json | jq ".lock" > next_lock.txt
 
             #Compare the outputs, if equal, break from the loop, else sleep and try again
             cmp --silent $lock next_lock.txt && waiting=2 || sleep 1
@@ -142,7 +143,6 @@ process wait_for_lock{
 
 //Get batch
 process get_batch{
-    errorStrategy 'ignore'
     input:
         path guid
         path lock
@@ -161,9 +161,12 @@ process get_batch{
         guid=\$(cat $guid)
 
         #Get guids for this batch
+        #Split into two commands as errors are not percolated through the pipe
         curl -SsL --fail --show-error -X 'GET' \
             '$params.api_url/api/relatedness/$params.species/db/get_batch' \
-            -H 'accept: application/json' | jq ".batch[]" | tr -d \\" > batch_guids.txt
+            -H 'accept: application/json' > batch.json
+        
+        cat batch.json | jq ".batch[]" | tr -d \\" > batch_guids.txt
 
         #Add own guid too
         echo \$guid >> batch_guids.txt
@@ -177,7 +180,6 @@ process get_batch{
 
 //Pull saves from bucket
 process get_saves{
-    errorStrategy 'ignore'
     input:
         path lock
         path batch
@@ -217,7 +219,6 @@ process get_saves{
 
 //Do comparisons
 process process_batch{
-    errorStrategy 'ignore'
     input:
         path lock
         path all
@@ -265,7 +266,6 @@ process process_batch{
 
 //Add to DB
 process add_to_db{
-    errorStrategy 'ignore'
     input:
         path to_process
         path comparisons
@@ -311,7 +311,6 @@ process add_to_db{
 
 //Update bucket
 process clean_up{
-    errorStrategy 'ignore'
     input:
         path lock
         path batch
@@ -350,7 +349,6 @@ process clean_up{
 }
 
 process remove_batch{
-    errorStrategy 'ignore'
     input:
         path lock
         path batch

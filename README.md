@@ -22,3 +22,20 @@ As deleting from a bucket is not supported by a bucket PAR, to enable this, next
 
 ## Process
 ![Sequential processing flowchart](fn5-sequential-processing-idea.png)
+
+## GDPR data removal
+To be GDPR compliant, we need to be able to delete user's saves upon request. This is currently not implemented, but the process would need to be something like:
+1. Stop other processing. Probably through acquiring the lock, but could also be during planned downtime
+2. Take a list of GUIDs to delete
+3. Pull the saves tarball && decompress
+4. Delete each of the GUIDS from the saves:
+    ```
+    for guid in to_delete;
+    do
+        rm saves/$guid*
+    done
+    ```
+5. Recompress && upload
+6. Release the lock (if applicable)
+
+
