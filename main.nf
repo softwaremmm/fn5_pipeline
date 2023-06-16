@@ -456,20 +456,24 @@ workflow find_neighbour_5{
 
         guid = reference_compress(params.sample)
         lock = check_lock(guid)
+        try {
+            //To stop Nextflow running this out of order, we need to use a dummy output fed into downstream processes
+            check = wait_for_lock(lock)
 
-        //To stop Nextflow running this out of order, we need to use a dummy output fed into downstream processes
-        check = wait_for_lock(lock)
+            batch = get_batch(guid, lock, check)
+            (all, to_process) = get_saves(lock, batch, check)
 
-        batch = get_batch(guid, lock, check)
-        (all, to_process) = get_saves(lock, batch, check)
+            (comparisons, all2) = process_batch(lock, all, to_process)
 
-        (comparisons, all2) = process_batch(lock, all, to_process)
+            done = add_to_db(to_process, comparisons, lock)
 
-        done = add_to_db(to_process, comparisons, lock)
-
-        cleaned_up = clean_up(lock, batch, all2, done)
-        batch_removed = remove_batch(lock, batch, done)
-        
+            cleaned_up = clean_up(lock, batch, all2, done)
+            batch_removed = remove_batch(lock, batch, done)
+        }
+        catch (Throwable e) {
+            release_lock(lock)
+            throw e
+        }
         release_lock(lock, cleaned_up, batch_removed)
 }
 
