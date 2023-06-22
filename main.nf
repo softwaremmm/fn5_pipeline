@@ -422,10 +422,10 @@ workflow find_neighbour_5{
 
             Parameters:
             ------------------------------------------------------------------------
-            --db_path   DB connection string of the format mysql://<user>:<password>@<host>:<port>/<db name>
-            --bucket    Pre authenticated request URL for a given bucket
             --sample    Path to the sample's FASTA file
             --species   Name of the species this belongs to. Default = 'tb'
+            --api_url   URL for the GPAS API
+            --api_token Access token for the API (not currently used)
             """
             .stripIndent()
             exit(0)
@@ -441,10 +441,9 @@ workflow find_neighbour_5{
 
         Parameters used:
         ------------------------------------------------------------------------
-        --db_path   $params.db_path
-        --bucket    $params.bucket
         --sample    $params.sample
         --species   $params.species
+        --api_url   $params.api_url
 
         Runtime data:
         ------------------------------------------------------------------------
