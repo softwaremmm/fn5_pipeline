@@ -49,6 +49,7 @@ process reference_compress{
     stub:
         """
         touch guid
+        echo Reference compressed
         """
 }
 
@@ -98,6 +99,7 @@ process check_lock{
     stub:
         """
         touch lock
+        echo Added lock
         """
 }
 
@@ -106,7 +108,7 @@ process wait_for_lock{
     input:
         path lock
     output:
-        path "ok"
+        path error_log
     script:
         //Using the Nextflow `when` guard didn't seem to work for checking if $lock is empty...
         """
@@ -133,11 +135,12 @@ process wait_for_lock{
         done
 
         #Wait for the lock
-        touch \$original_path/ok
+        touch \$original_path/error_log
         """
     stub:
         """
-        touch ok
+        touch error_log
+        echo Got lock
         """
 }
 
@@ -146,11 +149,20 @@ process get_batch{
     input:
         path guid
         path lock
-        path unlocked
+        path error_log
     output:
         path "batch_guids.txt"
+        path error_log
     script:
         """
+        set +e
+        trap "echo -e 'Failed to add to get batch\n' >> $error_log && touch batch_guids.txt && exit 0" SIGINT SIGTERM ERR
+        if [ -s $error_log ]; then
+            #Error occured upstream so skip this step
+            echo 'Skipped get_batch' >> $error_log
+            touch batch_guids.txt
+            exit 0
+        fi
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             touch batch_guids.txt
@@ -174,6 +186,7 @@ process get_batch{
     stub:
         """
         touch batch_guids.txt
+        echo Got batch
         """
 
 }
@@ -183,12 +196,22 @@ process get_saves{
     input:
         path lock
         path batch
-        path unlocked
+        path error_log
     output:
         path "all.tar.gz"
         path "to_process/*", emit: to_process
+        path error_log
     script:
         """
+        trap "echo -e 'Failed to add to get saves\n' >> $error_log && touch all.tar.gz && mkdir -p to_process && touch to_process/no && exit 0" SIGINT SIGTERM ERR
+        if [ -s $error_log ]; then
+            #Error occured upstream so skip this step
+            echo 'Skipped get_saves' >> $error_log
+            touch all.tar.gz
+            mkdir -p to_process
+            touch to_process/no
+            exit 0
+        fi        
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             touch all.tar.gz
@@ -199,7 +222,7 @@ process get_saves{
         curl -SsL --fail --show-error -X 'GET' \
             '$params.api_url/api/relatedness/$params.species/download?path=all.tar.gz' \
             -H 'accept: application/gzip' > all.tar.gz
-
+        
         mkdir -p to_process
 
         #Fetch the batch
@@ -214,6 +237,7 @@ process get_saves{
         touch all.tar.gz
         mkdir -p to_process
         touch to_process/filename.tar.gz
+        echo Got saves
         """
 }
 
@@ -223,18 +247,37 @@ process process_batch{
         path lock
         path all
         path to_process
+        path error_log
     output:
         path "comparisons.txt"
         path "all.tar.gz"
+        path error_log
     script:
         """
+        original_path=\$(pwd)
+        trap add_to_error_log SIGINT SIGTERM ERR
+
+        function add_to_error_log(){
+            echo -e 'Failed to process batch' >> \$original_path/$error_log
+            echo -e '$to_process \n' >> \$original_path/$error_log
+            touch \$original_path/comparisons.txt
+            touch \$original_path/all.tar.gz
+            exit 0
+        }
+
+        if [ -s $error_log ]; then
+            #Error occured upstream so skip this step
+            echo 'Skipped process_batch' >> $error_log
+            touch comparisons.txt
+            touch "all.tar.gz"
+            exit 0
+        fi
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             touch comparisons.txt
+            touch "all.tar.gz"
             exit 0
         fi
-
-        original_path=\$(pwd)
 
         mkdir -p /FN5/batch
         mkdir -p /FN5/saves
@@ -261,6 +304,7 @@ process process_batch{
         """
         touch comparisons.txt
         touch all.tar.gz
+        echo Processed batch
         """
 }
 
@@ -270,13 +314,24 @@ process add_to_db{
         path to_process
         path comparisons
         path lock
+        path error_log
     output:
-        path done
+        path error_log
     script:
         """
+        set +e
+        cat $error_log
+        
+        trap "echo 'Failed to add to DB: ' >> $error_log && cat $comparisons >> $error_log && echo "" >> $error_log && exit 0" SIGINT SIGTERM ERR
+
+        if [ -s $error_log ]; then
+            #Error occured upstream so skip this step
+            echo 'Skipped add_to_db' >> $error_log
+            echo "Skipping add_to_db"
+            exit 0
+        fi        
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
-            touch done
             exit 0
         fi
 
@@ -299,13 +354,10 @@ process add_to_db{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@$comparisons;type=text/plain"
-
-        #Add dummy output
-        touch \$original_path/done
         """
     stub:
         """
-        touch done
+        echo "Added to DB"
         """
 }
 
@@ -315,11 +367,28 @@ process clean_up{
         path lock
         path batch
         path all
-        path done_processing
+        path error_log
     output:
-        path cleaned_up
+        path error_log
     script:
         """
+        set +e
+        cat $error_log
+        trap add_to_error_log SIGINT SIGTERM ERR
+
+        function add_to_error_log(){
+            echo 'Failed to clean up the batch table: ' >> $error_log
+            cat $batch >> $error_log
+            echo -e 'Saves have not been updated!\n' >> $error_log
+            exit 0
+        }
+
+        if [ -s $error_log ]; then
+            #Error occured upstream so skip this step
+            echo 'Skipped clean_up' >> $error_log
+            echo "Skipping clean_up"
+            exit 0
+        fi
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             touch cleaned_up
@@ -340,11 +409,10 @@ process clean_up{
             -H 'Content-Type: multipart/form-data' \
             -F "file=@$all;type=application/gzip"        
             
-        touch cleaned_up
         """
     stub:
         """
-        touch cleaned_up
+        echo Cleared up batch + updated saves
         """
 }
 
@@ -352,14 +420,22 @@ process remove_batch{
     input:
         path lock
         path batch
-        path done_processing
+        path error_log
     output:
-        path batch_removed
+        path error_log
     script:
         """
+        set +e
+        $error_log
+        trap "echo 'Failed to add to clean up bucket: ' >> $error_log && cat $batch >> $error_log && echo "" >> $error_log && exit 0" SIGINT SIGTERM ERR
+        if [ -s $error_log ]; then
+            #Error occured upstream so skip this step
+            echo 'Skipped remove_batch' >> $error_log
+            echo "Skipping remove_batch"
+            exit 0
+        fi        
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
-            touch batch_removed
             exit 0
         fi
 
@@ -376,12 +452,10 @@ process remove_batch{
             -H 'Content-Type: multipart/form-data' \
             -F "file=@fixed_batch.txt;type=text/plain"
 
-        touch batch_removed
-
         """
     stub:
         """
-        touch batch_removed
+        echo Cleaned up bucket
         """
 }
 
@@ -389,18 +463,20 @@ process remove_batch{
 process release_lock{
     input:
         path lock
-        path cleared_batch
-        path removed_batch
+        path error_log
     script:
         """
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             exit 0
         fi
-
+        echo Starting in state
+        cat $error_log
+        echo Releasing lock \$(cat lock)
         curl --fail --show-error -X 'GET' \
             "$params.api_url/api/relatedness/$params.species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json'
+        echo Lock released
         """
     stub:
         """
@@ -453,23 +529,32 @@ workflow find_neighbour_5{
         """
         .stripIndent()
 
+        /**
+        Error handling here is obviously not as neat I'd like it,
+        but Nextflow doesn't support try/catch to call another process
+        so in absence of a neat solution, use of `trap` and percolating an error log
+        works, but definitely isn't ideal.
+        */
+
         guid = reference_compress(params.sample)
         lock = check_lock(guid)
 
-        //To stop Nextflow running this out of order, we need to use a dummy output fed into downstream processes
-        check = wait_for_lock(lock)
+        error_log = wait_for_lock(lock)
 
-        batch = get_batch(guid, lock, check)
-        (all, to_process) = get_saves(lock, batch, check)
+        (batch, error_log) = get_batch(guid, lock, error_log)
+        (all, to_process, error_log) = get_saves(lock, batch, error_log)
 
-        (comparisons, all2) = process_batch(lock, all, to_process)
+        (comparisons, all2, error_log) = process_batch(lock, all, to_process, error_log)
 
-        done = add_to_db(to_process, comparisons, lock)
+        error_log = add_to_db(to_process, comparisons, lock, error_log)
 
-        cleaned_up = clean_up(lock, batch, all2, done)
-        batch_removed = remove_batch(lock, batch, done)
-        
-        release_lock(lock, cleaned_up, batch_removed)
+        error_log = clean_up(lock, batch, all2, error_log)
+        error_log = remove_batch(lock, batch, error_log)
+
+        release_lock(lock, error_log)
+
+    emit:
+        error_log
 }
 
 workflow{
