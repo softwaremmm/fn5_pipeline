@@ -35,8 +35,6 @@ process reference_compress{
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
 
-        echo \$guid.tar.gz
-        ls -lhat
         
         curl -SsL --fail --show-error -X 'POST' \
             "$params.api_url/api/relatedness/$params.species/upload?path=to_process/\$(echo \$guid).tar.gz" \
@@ -70,7 +68,6 @@ process check_lock{
         #And provide an empty lock to skip rest of computation
         if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
             g=\$(echo "\$guid" | tail -n 1)
-            echo \$g 
             echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
 
             curl -SsL --fail --show-error -X 'POST' \
@@ -373,7 +370,6 @@ process clean_up{
     script:
         """
         set +e
-        cat $error_log
         trap add_to_error_log SIGINT SIGTERM ERR
 
         function add_to_error_log(){
@@ -386,7 +382,6 @@ process clean_up{
         if [ -s $error_log ]; then
             #Error occured upstream so skip this step
             echo 'Skipped clean_up' >> $error_log
-            echo "Skipping clean_up"
             exit 0
         fi
         if ! [ -s $lock ]; then
@@ -396,14 +391,14 @@ process clean_up{
         fi
 
 
-        time curl -SsL --fail --show-error -X 'POST' \
+        curl -SsL --fail --show-error -X 'POST' \
             '$params.api_url/api/relatedness/$params.species/db/clear_batch' \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F 'file=@$batch;type=text/plain'
 
         #Update the saves tarball
-        time curl -SsL --fail --show-error -X 'POST' \
+        curl -SsL --fail --show-error -X 'POST' \
             "$params.api_url/api/relatedness/$params.species/upload?path=all.tar.gz" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
@@ -426,12 +421,10 @@ process remove_batch{
     script:
         """
         set +e
-        $error_log
         trap "echo 'Failed to add to clean up bucket: ' >> $error_log && cat $batch >> $error_log && echo "" >> $error_log && exit 0" SIGINT SIGTERM ERR
         if [ -s $error_log ]; then
             #Error occured upstream so skip this step
             echo 'Skipped remove_batch' >> $error_log
-            echo "Skipping remove_batch"
             exit 0
         fi        
         if ! [ -s $lock ]; then
@@ -470,13 +463,9 @@ process release_lock{
             #Sample in batch rather than lock table, so exit
             exit 0
         fi
-        echo Starting in state
-        cat $error_log
-        echo Releasing lock \$(cat lock)
         curl --fail --show-error -X 'GET' \
             "$params.api_url/api/relatedness/$params.species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json'
-        echo Lock released
         """
     stub:
         """
