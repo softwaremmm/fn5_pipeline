@@ -8,3 +8,4 @@ run_batch.sh
 *.html
 *.txt
 *.fasta
+*.log
