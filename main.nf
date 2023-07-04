@@ -466,6 +466,13 @@ process release_lock{
         curl --fail --show-error -X 'GET' \
             "$params.api_url/api/relatedness/$params.species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json'
+
+
+        if [ -s $error_log ]; then
+            #Error occured upstream so now we have released the lock, throw it
+            cat $error_log > /dev/stderr
+            exit 1
+        fi  
         """
     stub:
         """
