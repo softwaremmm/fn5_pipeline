@@ -9,3 +9,5 @@ run_batch.sh
 *.txt
 *.fasta
 *.log
+*.tar.gz
+add_random_snps.py
