@@ -85,6 +85,7 @@ process check_lock{
                 -H "Authorization: Bearer $api_token"
             
             touch \$original_path/lock
+            touch \$original_path/error_log
             exit 0
         fi
 
