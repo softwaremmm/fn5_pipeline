@@ -25,7 +25,7 @@ process reference_compress{
 
         mkdir -p sample-out
 
-        guid=\$(./fn5 --reference_compress \$sample_path --saves_dir sample-out)
+        guid=\$(./fn5 --reference_compress \$sample_path --guid $params.run_id --saves_dir sample-out)
 
         #Check if this was a QC fail or not
         if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
@@ -302,7 +302,10 @@ process process_batch{
         mkdir -p /FN5/saves
 
         #Extract existing saves
-        tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
+        #Only decompress if not empty
+        if [ -s all.tar.gz ]; then
+            tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
+        fi
 
         #Decompress all of the samples in this batch
         to_process=\$(echo $to_process)
