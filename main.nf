@@ -47,7 +47,7 @@ process reference_compress{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@\$(echo \$guid).tar.gz;type=application/gzip" \
-            -H "Authorization: Bearer $api_token"
+            -H "Authorization: Basic $api_token"
 
         echo \$guid > \$original_path/guid
         """ 
@@ -88,7 +88,7 @@ process check_lock{
                 -H 'accept: application/json' \
                 -H 'Content-Type: multipart/form-data' \
                 -F 'file=@qc_fail_comparison.txt;type=text/plain' \
-                -H "Authorization: Bearer $api_token"
+                -H "Authorization: Basic $api_token"
             
             touch \$original_path/lock
             touch \$original_path/error_log
@@ -99,7 +99,7 @@ process check_lock{
         curl -SsL --fail --show-error -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/\$guid/check_lock" \
             -H 'accept: application/json' \
-            -H "Authorization: Bearer $api_token" > lock.json
+            -H "Authorization: Basic $api_token" > lock.json
         cat lock.json | jq ".lock" | tr -d \\" > \$original_path/lock
 
         #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
@@ -147,7 +147,7 @@ process wait_for_lock{
             curl -SsL --fail --show-error -X 'GET' \
                 '$api_url/api/v1/relatedness/$species/db/next_lock' \
                 -H 'accept: application/json' \
-                -H "Authorization: Bearer $api_token" > lock.json
+                -H "Authorization: Basic $api_token" > lock.json
             cat lock.json | jq ".lock" > next_lock.txt
 
             #Compare the outputs, if equal, break from the loop, else sleep and try again
@@ -203,7 +203,7 @@ process get_batch{
         curl -SsL --fail --show-error -X 'GET' \
             '$api_url/api/v1/relatedness/$species/db/get_batch' \
             -H 'accept: application/json' \
-            -H "Authorization: Bearer $api_token" > batch.json
+            -H "Authorization: Basic $api_token" > batch.json
         
         cat batch.json | jq ".batch[]" | tr -d \\" > batch_guids.txt
 
@@ -255,7 +255,7 @@ process get_saves{
         curl -SsL --fail --show-error -X 'GET' \
             '$api_url/api/v1/relatedness/$species/download?path=all.tar.gz' \
             -H 'accept: application/gzip' \
-            -H "Authorization: Bearer $api_token" > all.tar.gz
+            -H "Authorization: Basic $api_token" > all.tar.gz
         
         mkdir -p to_process
 
@@ -264,7 +264,7 @@ process get_saves{
             curl -SsL --fail --show-error -X 'GET' \
                 "$api_url/api/v1/relatedness/$species/download?path=to_process/\$f.tar.gz" \
                 -H 'accept: application/gzip' \
-                -H "Authorization: Bearer $api_token" > to_process/\$f.tar.gz
+                -H "Authorization: Basic $api_token" > to_process/\$f.tar.gz
         done
         """
     stub:
@@ -401,7 +401,7 @@ process add_to_db{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@$comparisons;type=text/plain" \
-            -H "Authorization: Bearer $api_token"
+            -H "Authorization: Basic $api_token"
         """
     stub:
         """
@@ -453,7 +453,7 @@ process clean_up{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F 'file=@$batch;type=text/plain' \
-            -H "Authorization: Bearer $api_token"
+            -H "Authorization: Basic $api_token"
 
         #Update the saves tarball
         curl -SsL --fail --show-error -X 'POST' \
@@ -461,7 +461,7 @@ process clean_up{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@$all;type=application/gzip" \
-            -H "Authorization: Bearer $api_token"
+            -H "Authorization: Basic $api_token"
             
         """
     stub:
@@ -509,7 +509,7 @@ process remove_batch{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@fixed_batch.txt;type=text/plain" \
-            -H "Authorization: Bearer $api_token"
+            -H "Authorization: Basic $api_token"
 
         """
     stub:
@@ -538,7 +538,7 @@ process release_lock{
         curl --fail --show-error -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json' \
-            -H "Authorization: Bearer $api_token"
+            -H "Authorization: Basic $api_token"
         """
     stub:
         """
