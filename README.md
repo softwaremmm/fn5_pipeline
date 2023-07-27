@@ -32,4 +32,14 @@ To be GDPR compliant, we need to be able to delete user's saves upon request. Th
 5. Recompress && upload
 6. Release the lock (if applicable)
 
+## Adding a new species
+To add a new species, there are a few things which need to be done to avoid (sometimes) non-descript errors.
+1. Add a row to the species table `insert into species(species_name) values("<species name>");`
+    * Without this, you'll get a 404 with a message `species not found!`
+2. Add a folder to the relatedness bucket `mkdir -p <relatedness bucket>/<species name>` or use the cloud interface
+    * Without this, you'll get a 404 with no message
+3. Add a subfolder to the relatedness bucket `mkdir -p <relatedness bucket>/<species name>/to_process` or use the cloud interface
+    * Without this, you'll get a 500 with no message
+4. Add a starting `all.tar.gz`. Either copy in saves (assuming run_id values are valid), or  `touch <relatedness bucket>/<species name>/all.tar.gz`.
+    * Without this, you'll get a 404 with no message
 
