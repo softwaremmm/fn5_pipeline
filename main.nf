@@ -41,7 +41,7 @@ process reference_compress{
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
 
-        
+
         curl -SsL --fail --show-error -X 'POST' \
             "$api_url/api/v1/relatedness/$species/upload?path=to_process/\$(echo \$guid).tar.gz" \
             -H 'accept: application/json' \
@@ -538,9 +538,7 @@ process release_lock{
         curl --fail --show-error -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json' \
-            -H "Authorization: Basic $api_token"
-            "$params.api_url/api/relatedness/$params.species/db/clear_lock?lock=\$(cat lock)" \
-            -H 'accept: application/json'
+            -H "Authorization: Basic $api_token" \
 
         if [ -s $error_log ]; then
             #Error occured upstream so now we have released the lock, throw it
