@@ -9,8 +9,14 @@ ANSI_RESET = "\033[0m"
 
 //Ref compress sample & push to bucket
 process reference_compress{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path sample
+        val species
+        val api_url
+        val api_token
     output:
         path "guid"
     script:
@@ -22,7 +28,7 @@ process reference_compress{
 
         mkdir -p sample-out
 
-        guid=\$(./fn5 --reference_compress \$sample_path --saves_dir sample-out)
+        guid=\$(./fn5 --reference_compress \$sample_path --guid $params.run_id --saves_dir sample-out)
 
         #Check if this was a QC fail or not
         if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
@@ -37,10 +43,11 @@ process reference_compress{
 
         
         curl -SsL --fail --show-error -X 'POST' \
-            "$params.api_url/api/relatedness/$params.species/upload?path=to_process/\$(echo \$guid).tar.gz" \
+            "$api_url/api/v1/relatedness/$species/upload?path=to_process/\$(echo \$guid).tar.gz" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
-            -F "file=@\$(echo \$guid).tar.gz;type=application/gzip"
+            -F "file=@\$(echo \$guid).tar.gz;type=application/gzip" \
+            -H "Authorization: Basic $api_token"
 
         echo \$guid > \$original_path/guid
         """ 
@@ -53,8 +60,14 @@ process reference_compress{
 
 //Check lock
 process check_lock{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path guid
+        val species
+        val api_url
+        val api_token
     output:
         path "lock"
     script:
@@ -71,19 +84,22 @@ process check_lock{
             echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
 
             curl -SsL --fail --show-error -X 'POST' \
-                '$params.api_url/api/relatedness/$params.species/db/add_distances' \
+                '$api_url/api/v1/relatedness/$species/db/add_distances' \
                 -H 'accept: application/json' \
                 -H 'Content-Type: multipart/form-data' \
-                -F 'file=@qc_fail_comparison.txt;type=text/plain'
+                -F 'file=@qc_fail_comparison.txt;type=text/plain' \
+                -H "Authorization: Basic $api_token"
             
             touch \$original_path/lock
+            touch \$original_path/error_log
             exit 0
         fi
 
         #Add the lock
         curl -SsL --fail --show-error -X 'GET' \
-            "$params.api_url/api/relatedness/$params.species/db/\$guid/check_lock" \
-            -H 'accept: application/json' > lock.json
+            "$api_url/api/v1/relatedness/$species/db/\$guid/check_lock" \
+            -H 'accept: application/json' \
+            -H "Authorization: Basic $api_token" > lock.json
         cat lock.json | jq ".lock" | tr -d \\" > \$original_path/lock
 
         #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
@@ -102,8 +118,14 @@ process check_lock{
 
 //Wait for lock
 process wait_for_lock{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path lock
+        val species
+        val api_url
+        val api_token
     output:
         path error_log
     script:
@@ -123,8 +145,9 @@ process wait_for_lock{
         do
             #Use the API to get the next lock in the table
             curl -SsL --fail --show-error -X 'GET' \
-                '$params.api_url/api/relatedness/$params.species/db/next_lock' \
-                -H 'accept: application/json' > lock.json
+                '$api_url/api/v1/relatedness/$species/db/next_lock' \
+                -H 'accept: application/json' \
+                -H "Authorization: Basic $api_token" > lock.json
             cat lock.json | jq ".lock" > next_lock.txt
 
             #Compare the outputs, if equal, break from the loop, else sleep and try again
@@ -143,10 +166,16 @@ process wait_for_lock{
 
 //Get batch
 process get_batch{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path guid
         path lock
         path error_log
+        val species
+        val api_url
+        val api_token
     output:
         path "batch_guids.txt"
         path error_log
@@ -172,8 +201,9 @@ process get_batch{
         #Get guids for this batch
         #Split into two commands as errors are not percolated through the pipe
         curl -SsL --fail --show-error -X 'GET' \
-            '$params.api_url/api/relatedness/$params.species/db/get_batch' \
-            -H 'accept: application/json' > batch.json
+            '$api_url/api/v1/relatedness/$species/db/get_batch' \
+            -H 'accept: application/json' \
+            -H "Authorization: Basic $api_token" > batch.json
         
         cat batch.json | jq ".batch[]" | tr -d \\" > batch_guids.txt
 
@@ -190,10 +220,16 @@ process get_batch{
 
 //Pull saves from bucket
 process get_saves{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path lock
         path batch
         path error_log
+        val species
+        val api_url
+        val api_token
     output:
         path "all.tar.gz"
         path "to_process/*", emit: to_process
@@ -217,16 +253,18 @@ process get_saves{
             exit 0
         fi
         curl -SsL --fail --show-error -X 'GET' \
-            '$params.api_url/api/relatedness/$params.species/download?path=all.tar.gz' \
-            -H 'accept: application/gzip' > all.tar.gz
+            '$api_url/api/v1/relatedness/$species/download?path=all.tar.gz' \
+            -H 'accept: application/gzip' \
+            -H "Authorization: Basic $api_token" > all.tar.gz
         
         mkdir -p to_process
 
         #Fetch the batch
         for f in \$(cat $batch); do
             curl -SsL --fail --show-error -X 'GET' \
-                "$params.api_url/api/relatedness/$params.species/download?path=to_process/\$f.tar.gz" \
-                -H 'accept: application/gzip' > to_process/\$f.tar.gz
+                "$api_url/api/v1/relatedness/$species/download?path=to_process/\$f.tar.gz" \
+                -H 'accept: application/gzip' \
+                -H "Authorization: Basic $api_token" > to_process/\$f.tar.gz
         done
         """
     stub:
@@ -240,6 +278,9 @@ process get_saves{
 
 //Do comparisons
 process process_batch{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 6
+    memory = "8GB"
     input:
         path lock
         path all
@@ -280,7 +321,10 @@ process process_batch{
         mkdir -p /FN5/saves
 
         #Extract existing saves
-        tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
+        #Only decompress if not empty
+        if [ -s all.tar.gz ]; then
+            tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
+        fi
 
         #Decompress all of the samples in this batch
         to_process=\$(echo $to_process)
@@ -307,11 +351,17 @@ process process_batch{
 
 //Add to DB
 process add_to_db{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path to_process
         path comparisons
         path lock
         path error_log
+        val species
+        val api_url
+        val api_token
     output:
         path error_log
     script:
@@ -347,10 +397,11 @@ process add_to_db{
         #Add to DB
 
         curl --fail --show-error -X 'POST' \
-            '$params.api_url/api/relatedness/$params.species/db/add_distances' \
+            '$api_url/api/v1/relatedness/$species/db/add_distances' \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
-            -F "file=@$comparisons;type=text/plain"
+            -F "file=@$comparisons;type=text/plain" \
+            -H "Authorization: Basic $api_token"
         """
     stub:
         """
@@ -360,11 +411,17 @@ process add_to_db{
 
 //Update bucket
 process clean_up{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path lock
         path batch
         path all
         path error_log
+        val species
+        val api_url
+        val api_token
     output:
         path error_log
     script:
@@ -392,17 +449,19 @@ process clean_up{
 
 
         curl -SsL --fail --show-error -X 'POST' \
-            '$params.api_url/api/relatedness/$params.species/db/clear_batch' \
+            '$api_url/api/v1/relatedness/$species/db/clear_batch' \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
-            -F 'file=@$batch;type=text/plain'
+            -F 'file=@$batch;type=text/plain' \
+            -H "Authorization: Basic $api_token"
 
         #Update the saves tarball
         curl -SsL --fail --show-error -X 'POST' \
-            "$params.api_url/api/relatedness/$params.species/upload?path=all.tar.gz" \
+            "$api_url/api/v1/relatedness/$species/upload?path=all.tar.gz" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
-            -F "file=@$all;type=application/gzip"        
+            -F "file=@$all;type=application/gzip" \
+            -H "Authorization: Basic $api_token"
             
         """
     stub:
@@ -412,10 +471,16 @@ process clean_up{
 }
 
 process remove_batch{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path lock
         path batch
         path error_log
+        val species
+        val api_url
+        val api_token        
     output:
         path error_log
     script:
@@ -440,10 +505,11 @@ process remove_batch{
         done
 
         curl -SsL --fail --show-error -X 'POST' \
-            "$params.api_url/api/relatedness/$params.species/delete" \
+            "$api_url/api/v1/relatedness/$species/delete" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
-            -F "file=@fixed_batch.txt;type=text/plain"
+            -F "file=@fixed_batch.txt;type=text/plain" \
+            -H "Authorization: Basic $api_token"
 
         """
     stub:
@@ -454,9 +520,15 @@ process remove_batch{
 
 //Release lock
 process release_lock{
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:latest"
+    cpus = 1
+    memory = "2GB"
     input:
         path lock
         path error_log
+        val species
+        val api_url
+        val api_token
     script:
         """
         if ! [ -s $lock ]; then
@@ -464,9 +536,11 @@ process release_lock{
             exit 0
         fi
         curl --fail --show-error -X 'GET' \
+            "$api_url/api/v1/relatedness/$species/db/clear_lock?lock=\$(cat lock)" \
+            -H 'accept: application/json' \
+            -H "Authorization: Basic $api_token"
             "$params.api_url/api/relatedness/$params.species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json'
-
 
         if [ -s $error_log ]; then
             #Error occured upstream so now we have released the lock, throw it
@@ -482,9 +556,14 @@ process release_lock{
 
 //Split into separate workflow to enable importing
 workflow find_neighbour_5{
-    main:
+    take:
+        sample
+        species
+        api_url
+        api_token        
 
-        //Setup so --help triggers the help message
+    main:
+        // Setup so --help triggers the help message
         if (params.help) {
             log.info """
             ========================================================================
@@ -497,7 +576,7 @@ workflow find_neighbour_5{
             --sample    Path to the sample's FASTA file
             --species   Name of the species this belongs to. Default = 'tb'
             --api_url   URL for the GPAS API
-            --api_token Access token for the API (not currently used)
+            --api_token Access token for the API
             """
             .stripIndent()
             exit(0)
@@ -513,9 +592,9 @@ workflow find_neighbour_5{
 
         Parameters used:
         ------------------------------------------------------------------------
-        --sample    $params.sample
-        --species   $params.species
-        --api_url   $params.api_url
+        --sample    $sample
+        --species   $species
+        --api_url   $api_url
 
         Runtime data:
         ------------------------------------------------------------------------
@@ -532,22 +611,22 @@ workflow find_neighbour_5{
         works, but definitely isn't ideal.
         */
 
-        guid = reference_compress(params.sample)
-        lock = check_lock(guid)
+        guid = reference_compress(sample, species, api_url, api_token)
+        lock = check_lock(guid, species, api_url, api_token)
 
-        error_log = wait_for_lock(lock)
+        error_log = wait_for_lock(lock, species, api_url, api_token)
 
-        (batch, error_log) = get_batch(guid, lock, error_log)
-        (all, to_process, error_log) = get_saves(lock, batch, error_log)
+        (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
+        (all, to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token)
 
         (comparisons, all2, error_log) = process_batch(lock, all, to_process, error_log)
 
-        error_log = add_to_db(to_process, comparisons, lock, error_log)
+        error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
 
-        error_log = clean_up(lock, batch, all2, error_log)
-        error_log = remove_batch(lock, batch, error_log)
+        error_log = clean_up(lock, batch, all2, error_log, species, api_url, api_token)
+        error_log = remove_batch(lock, batch, error_log, species, api_url, api_token)
 
-        release_lock(lock, error_log)
+        release_lock(lock, error_log, species, api_url, api_token)
 
     emit:
         error_log
@@ -555,7 +634,6 @@ workflow find_neighbour_5{
 
 workflow{
     main:
-        //TODO: Add API token once integrated into GPAS API
-        find_neighbour_5()
+        find_neighbour_5(params.sample, params.species, params.api_url, params.api_token)
 }
 
