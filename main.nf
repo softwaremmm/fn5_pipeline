@@ -561,47 +561,6 @@ workflow find_neighbour_5{
         api_token        
 
     main:
-        // Setup so --help triggers the help message
-        if (params.help) {
-            log.info """
-            ========================================================================
-            Find Neighbour 5
-
-            Fast SNP distance calculation from disk.
-
-            Parameters:
-            ------------------------------------------------------------------------
-            --sample    Path to the sample's FASTA file
-            --species   Name of the species this belongs to. Default = 'tb'
-            --api_url   URL for the GPAS API
-            --api_token Access token for the API
-            """
-            .stripIndent()
-            exit(0)
-        }
-
-        if (params.sample == '') {
-            log.info 'No sample given, aborting!'
-            exit(1)
-        }
-        log.info """
-        ========================================================================
-        Find Neighbour 5
-
-        Parameters used:
-        ------------------------------------------------------------------------
-        --sample    $sample
-        --species   $species
-        --api_url   $api_url
-
-        Runtime data:
-        ------------------------------------------------------------------------
-        Running with profile  ${ANSI_GREEN}${workflow.profile}${ANSI_RESET}
-        Running as user       ${ANSI_GREEN}${workflow.userName}${ANSI_RESET}
-        Launch directory      ${ANSI_GREEN}${workflow.launchDir}${ANSI_RESET}
-        """
-        .stripIndent()
-
         /**
         Error handling here is obviously not as neat I'd like it,
         but Nextflow doesn't support try/catch to call another process
@@ -632,6 +591,47 @@ workflow find_neighbour_5{
 
 workflow{
     main:
+        // Setup so --help triggers the help message
+        if (params.help) {
+            log.info """
+            ========================================================================
+            Find Neighbour 5
+
+            Fast SNP distance calculation from disk.
+
+            Parameters:
+            ------------------------------------------------------------------------
+            --sample    Path to the sample's FASTA file
+            --species   Name of the species this belongs to. Default = 'tb'
+            --api_url   URL for the GPAS API
+            --api_token Access token for the API
+            """
+            .stripIndent()
+            exit(0)
+        }
+
+        if (params.sample == '') {
+            log.info 'No sample given, aborting!'
+            exit(1)
+        }
+        log.info """
+        ========================================================================
+        Find Neighbour 5
+
+        Parameters used:
+        ------------------------------------------------------------------------
+        --sample    $params.sample
+        --species   $params.species
+        --api_url   $params.api_url
+
+        Runtime data:
+        ------------------------------------------------------------------------
+        Running with profile  ${ANSI_GREEN}${workflow.profile}${ANSI_RESET}
+        Running as user       ${ANSI_GREEN}${workflow.userName}${ANSI_RESET}
+        Launch directory      ${ANSI_GREEN}${workflow.launchDir}${ANSI_RESET}
+        """
+        .stripIndent()
+        
         find_neighbour_5(params.sample, params.species, params.api_url, params.api_token)
 }
 
