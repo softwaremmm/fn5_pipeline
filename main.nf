@@ -540,11 +540,11 @@ process release_lock{
             -H 'accept: application/json' \
             -H "Authorization: Basic $api_token" \
 
-        if [ -s $error_log ]; then
-            #Error occured upstream so now we have released the lock, throw it
-            cat $error_log > /dev/stderr
-            exit 1
-        fi  
+        #if [ -s $error_log ]; then
+        #    #Error occured upstream so now we have released the lock, throw it
+        #    cat $error_log > /dev/stderr
+        #    exit 1
+        #fi  
         """
     stub:
         """
