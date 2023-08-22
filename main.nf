@@ -133,7 +133,7 @@ process wait_for_lock{
         """
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
-            touch $error_log
+            touch error_log
             exit 0
         fi
 
