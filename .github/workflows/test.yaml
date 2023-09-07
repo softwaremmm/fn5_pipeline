@@ -43,11 +43,17 @@ jobs:
         #Give it some time to start
         sleep 240
 
+        python3.11 -m pdm run bootstrap
+
         python3.11 -m pdm run serve > pdm-serve.log &
+        sleep 10
         
         #Give it some data and check we can access
-        python3.11 -m pdm run bootstrap
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/test/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
+        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/tb/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
+
+
+        #Hopefully exit the action
+        exit 0
 
         
 
