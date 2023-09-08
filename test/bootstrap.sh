@@ -42,7 +42,7 @@ curl -SsL --fail --show-error \
     -H 'accept: application/json' \
     -H 'Content-Type: multipart/form-data' \
     -F "file=@dummy-sample-file.fastq.gz;type=text/plain" \
-    -H "Authorization: Basic test-api-key
+    -H "Authorization: Basic test-api-key"
 
 add_run(){
     #Create a run
