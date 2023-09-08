@@ -11,3 +11,6 @@ run_batch.sh
 *.log
 *.tar.gz
 add_random_snps.py
+
+#Ensure we track test data files
+!test/**
