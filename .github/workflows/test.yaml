@@ -45,12 +45,12 @@ jobs:
         python3.11 -m pdm run bootstrap
 
         #Setup the API
-        python3.11 -m pdm run serve > pdm-serve.log &
+        python3.11 -m pdm run serve 2> pdm-serve.log &
         sleep 20
         
         #Give it some data and check we can access
         curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/samples -H "Authorization: Basic test-api-key"
-        
+
         curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/species -H "Authorization: Basic test-api-key" -X POST -d '{"species_name": "test"}'
 
         curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/test/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
