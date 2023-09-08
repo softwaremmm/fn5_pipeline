@@ -56,10 +56,16 @@ jobs:
 
         bash test/bootstrap.sh
 
+        sudo nextflow run . -profile docker --api_url http://0.0.0.0:8000 --sample test/sample.fasta --api_token test-api-key --species tb --run_id 1
+
+        sudo nextflow run . -profile docker --api_url http://0.0.0.0:8000 --sample test/sample2.fasta --api_token test-api-key --species tb --run_id 2
+
+        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/tb/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
+
 
         curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/samples -H "Authorization: Basic test-api-key"
 
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/test/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
+        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/tb/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
 
 
         #Hopefully exit the action
