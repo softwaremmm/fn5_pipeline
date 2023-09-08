@@ -12,7 +12,7 @@ jobs:
         set -xe
         #Install pre-reqs
         sudo apt update
-        sudo apt install -y git curl openjdk-11-jdk
+        sudo apt install -y git curl openjdk-11-jdk jq
 
         #Install python 3.11
         sudo apt install wget build-essential libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev
@@ -41,17 +41,23 @@ jobs:
         #Run the DB in the background
         python3.11 -m pdm run docker-up -d
 
-        #Populate some data
+        #Populate some data. This doesn't seem to work though...
         python3.11 -m pdm run bootstrap
 
         #Setup the API
         python3.11 -m pdm run serve 2> pdm-serve.log &
-        sleep 20
+        sleep 30
         
         #Give it some data and check we can access
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/samples -H "Authorization: Basic test-api-key"
+        cd ..
+        git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git
+        cd fn5_pipeline
+        git checkout add-tests
 
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/species -H "Authorization: Basic test-api-key" -X POST -d '{"species_name": "test"}'
+        bash test/bootstrap.sh
+
+
+        curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/samples -H "Authorization: Basic test-api-key"
 
         curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/test/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
 
