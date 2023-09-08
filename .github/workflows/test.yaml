@@ -38,15 +38,15 @@ jobs:
 
         python3.11 -m pdm install
 
-        #Run the DB/API in the background
-        python3.11 -m pdm run docker-up > pdm-docker.log &
-        #Give it some time to start
-        sleep 240
+        #Run the DB in the background
+        python3.11 -m pdm run docker-up -d
 
+        #Populate some data
         python3.11 -m pdm run bootstrap
 
+        #Setup the API
         python3.11 -m pdm run serve > pdm-serve.log &
-        sleep 10
+        sleep 20
         
         #Give it some data and check we can access
         curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/species -H "Authorization: Basic test-api-key" -X POST -d '{"species_name": "test"}'
