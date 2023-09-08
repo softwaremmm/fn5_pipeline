@@ -36,12 +36,13 @@ curl -SsL --fail --show-error \
 
 SAMPLE_ID=$(cat sample.json | jq ".id")
 
-curl -SsL --fail --show-error -X 'POST' \
-            "http://127.0.0.1:8000/api/v1/samples" \
-            -H 'accept: application/json' \
-            -H 'Content-Type: multipart/form-data' \
-            -F "file=@dummy-sample-file.fastq.gz;type=text/plain" \
-            -H "Authorization: Basic test-api-key"
+curl -SsL --fail --show-error \
+    -X 'POST' \
+    "http://127.0.0.1:8000/api/v1/samples/$SAMPLE_ID/files" \
+    -H 'accept: application/json' \
+    -H 'Content-Type: multipart/form-data' \
+    -F "file=@dummy-sample-file.fastq.gz;type=text/plain" \
+    -H "Authorization: Basic test-api-key
 
 add_run(){
     #Create a run
