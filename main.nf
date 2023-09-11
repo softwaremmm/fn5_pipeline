@@ -279,8 +279,10 @@ process get_saves{
 //Do comparisons
 process process_batch{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
-    cpus = 6
-    memory = "8GB"
+    cpus = {
+        params.testing=="" ? 6 : 1
+    }
+    memory = "4GB"
     input:
         path lock
         path all
