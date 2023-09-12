@@ -102,11 +102,15 @@ process check_lock{
             -H "Authorization: Basic $api_token" > lock.json
         cat lock.json | jq ".lock" | tr -d \\" > \$original_path/lock
 
+        #The lock is the literal string 'null' if added to batch
+        echo null > trial_lock
+        cmp --silent \$original_path/lock trial_lock && \$(echo lock was null && rm \$original_path/lock && touch \$original_path/lock) || \$(echo lock was not null && cat \$original_path/lock)
+
         #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
         #Catch this and make it empty
-        echo -e "" > null_byte.txt
+        #echo -e "" > null_byte.txt
         #This needs the `||` clause or it exits with an error 
-        cmp --silent \$original_path/lock null_byte.txt && \$(rm \$original_path/lock && touch \$original_path/lock) || cat \$original_path/lock
+        #cmp --silent \$original_path/lock null_byte.txt && \$(rm \$original_path/lock && touch \$original_path/lock) || cat \$original_path/lock
 
         """
     stub:
