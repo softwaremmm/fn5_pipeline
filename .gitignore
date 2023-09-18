@@ -12,5 +12,5 @@ run_batch.sh
 *.tar.gz
 add_random_snps.py
 
-#Ensure we track test data files
-!test/**
+#Ensure we track base test fasta
+!test/sample.fasta

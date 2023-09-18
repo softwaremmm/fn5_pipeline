@@ -11,7 +11,9 @@ ANSI_RESET = "\033[0m"
 process reference_compress{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path sample
         val species
@@ -62,7 +64,9 @@ process reference_compress{
 process check_lock{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path guid
         val species
@@ -102,11 +106,15 @@ process check_lock{
             -H "Authorization: Basic $api_token" > lock.json
         cat lock.json | jq ".lock" | tr -d \\" > \$original_path/lock
 
+        #The lock is the literal string 'null' if added to batch
+        echo null > trial_lock
+        cmp --silent \$original_path/lock trial_lock && (echo lock was null && rm \$original_path/lock && touch \$original_path/lock) || (echo lock was not null && cat \$original_path/lock)
+
         #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
         #Catch this and make it empty
-        echo -e "" > null_byte.txt
+        #echo -e "" > null_byte.txt
         #This needs the `||` clause or it exits with an error 
-        cmp --silent \$original_path/lock null_byte.txt && \$(rm \$original_path/lock && touch \$original_path/lock) || cat \$original_path/lock
+        #cmp --silent \$original_path/lock null_byte.txt && \$(rm \$original_path/lock && touch \$original_path/lock) || cat \$original_path/lock
 
         """
     stub:
@@ -120,7 +128,9 @@ process check_lock{
 process wait_for_lock{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         val species
@@ -168,7 +178,9 @@ process wait_for_lock{
 process get_batch{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path guid
         path lock
@@ -222,7 +234,9 @@ process get_batch{
 process get_saves{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path batch
@@ -282,7 +296,9 @@ process process_batch{
     cpus = {
         params.testing=="" ? 6 : 1
     }
-    memory = "4GB"
+    memory = {
+        params.testing=="" ? "4GB" : "1GB"
+    }
     input:
         path lock
         path all
@@ -355,7 +371,9 @@ process process_batch{
 process add_to_db{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path to_process
         path comparisons
@@ -415,7 +433,9 @@ process add_to_db{
 process clean_up{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path batch
@@ -475,7 +495,9 @@ process clean_up{
 process remove_batch{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path batch
@@ -524,7 +546,9 @@ process remove_batch{
 process release_lock{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path error_log

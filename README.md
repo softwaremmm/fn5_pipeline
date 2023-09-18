@@ -10,6 +10,13 @@ Where:
 * `<api URL>` is the URL for the API
 * `<fasta path>` is the full (absolute) path to a sample's FASTA file  
 
+## Testing
+For the sake of your sanity, don't run the unit tests locally. The github actions is setup to install and run everything required, as well as pre-populate required records, and build the test dataset. This **can** be done locally, but it's up to you to ensure everything is populated!
+See `.github/workflows/test.yaml` for an example of how this could be done locally.
+
+As this test suite (and the pipeline) rely on API calls for running, as well as retriving results, `nf-test` was inappropriate.
+
+
 ## Process
 ![Sequential processing flowchart](fn5-sequential-processing-idea.png)
 

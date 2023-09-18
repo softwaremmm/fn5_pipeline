@@ -19,6 +19,13 @@ curl -SsL \
     -X POST \
     -d '{"species_name": "test"}'
 
+curl -SsL \
+    --header "Content-Type: application/json"  \
+    --request GET  http://0.0.0.0:8000/api/v1/species \
+    -H "Authorization: Basic test-api-key" \
+    -X POST \
+    -d '{"species_name": "test2"}'
+
 #Create a batch
 curl -SsL --fail --show-error \
     --header "Content-Type: application/json"  \

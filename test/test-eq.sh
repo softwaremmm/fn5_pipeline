@@ -1,0 +1,31 @@
+#!/bin/bash
+set -xe
+
+# This is a first pass. Ideally we'd test every permutation rather than just the end product
+
+get_dist(){
+    local species=$1
+    local run_id=$2
+    curl -SsL --header "Content-Type: application/json"  --request GET  https://0.0.0.0:8000/api/v1/relatedness/test/neighbours\?run_id\=$1 -H "Authorization: Basic test-api-key"
+}
+
+json_eq(){
+    local expected=$(cat $1 | jq ".")
+    local actual=$(cat $2 | jq ".")
+    if [ "$expected" -eq "$actual" ]; then
+        #Correct
+        echo "PASS: $actual"
+}
+
+#Check that our synchronous runs have expected values first
+mkdir -p test/actual_distances/synchronous
+
+for i in {1..6}; do
+    get_dist test $i > test/actual_distances/synchronous/$i.json
+    echo $i
+    cat test/actual_distances/synchronous/$i.json
+    echo
+done
+
+
+

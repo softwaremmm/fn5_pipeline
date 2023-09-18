@@ -35,15 +35,11 @@ jobs:
         git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/gpas.git
 
         cd gpas
-        git checkout fix/add-species-files
 
         python3.11 -m pdm install
 
         #Run the DB in the background
         python3.11 -m pdm run docker-up -d
-
-        #Populate some data. This doesn't seem to work though...
-        python3.11 -m pdm run bootstrap
 
         #Setup the API
         python3.11 -m pdm run serve 2> pdm-serve.log &
@@ -55,25 +51,20 @@ jobs:
         cd fn5_pipeline
         git checkout add-tests
 
+        #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
 
-        sudo nextflow run . -profile docker --api_url http://127.0.0.1:8000 --sample $(pwd)/test/sample.fasta --api_token test-api-key --species test --run_id 1 --testing true
+        #Build test cases with known distances
+        python3.11 test/build-test-set.py
 
-        sudo nextflow run . -profile docker --api_url http://127.0.0.1:8000 --sample $(pwd)/test/sample2.fasta --api_token test-api-key --species test --run_id 2 --testing true
+        #Run without queuing
+        bash test/run-synchronous.sh
 
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://127.0.0.1:8000/api/v1/relatedness/test/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
+        #Run with queuing
+        bash test/run-asynchronous.sh
 
-
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://127.0.0.1:8000/api/v1/samples -H "Authorization: Basic test-api-key"
-
-        curl -SsL --header "Content-Type: application/json"  --request GET  http://127.0.0.1:8000/api/v1/relatedness/test/neighbours\?run_id\=1 -H "Authorization: Basic test-api-key"
-
-
-        #Hopefully exit the action
-        sleep 20
-        cat ../gpas/pdm-serve.log
-        exit 0
-
+        #Test it produces expected results
+        bash test/test-eq.sh
         
 
 
