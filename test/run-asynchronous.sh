@@ -22,6 +22,13 @@ for job in $(jobs -p); do
         return_code="$?"
     else
         return_code="$?"
+        #There was an error so dump the logs and exit loudly
+        for f in $(ls | grep log); do
+            echo $f
+            cat $f
+            echo
+            echo
+        done
         exit 1
     fi
 done
