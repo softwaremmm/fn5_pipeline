@@ -43,6 +43,8 @@ jobs:
 
         #Setup the API
         python3.11 -m pdm run serve 2> pdm-serve.log &
+        echo Started API
+
         sleep 30
         
         #Give it some data and check we can access
