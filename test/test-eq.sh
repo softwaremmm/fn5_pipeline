@@ -35,7 +35,7 @@ mkdir -p test/actual_distances/synchronous
 for i in {1..6}; do
     get_dist test $i > test/actual_distances/synchronous/$i.json
     echo $i
-    cat test/actual_distances/synchronous/$i.json
+    json_eq test/expected/$i.json test/actual_distances/synchronous/$i.json
     echo
 done
 
