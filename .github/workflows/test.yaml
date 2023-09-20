@@ -63,7 +63,7 @@ jobs:
         bash test/run-synchronous.sh
 
         #Run with queuing
-        bash test/run-asynchronous.sh
+        sudo bash test/run-asynchronous.sh
 
         #Test it produces expected results
         bash test/test-eq.sh
