@@ -1,5 +1,5 @@
 #!/bin/bash
-set -xe
+set -e
 
 # This is a first pass. Ideally we'd test every permutation rather than just the end product
 
@@ -12,7 +12,7 @@ get_dist(){
 json_eq(){
     local expected=$(cat $1 | jq ".")
     local actual=$(cat $2 | jq ".")
-    if [ "$expected" -eq "$actual" ]; then
+    if [[ "$expected" == "$actual" ]]; then
         #Correct
         echo "PASS: $2"
     else
