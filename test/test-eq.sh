@@ -32,7 +32,7 @@ json_eq(){
 #Check that our synchronous runs have expected values first
 mkdir -p test/actual_distances/synchronous
 
-for i in {1..6}; do
+for i in {1..7}; do
     get_dist test $i > test/actual_distances/synchronous/$i.json
     echo $i
     json_eq test/expected/$i.json test/actual_distances/synchronous/$i.json
@@ -42,7 +42,7 @@ done
 #Should be identical for async
 mkdir -p test/actual_distances/asynchronous
 
-for i in {1..6}; do
+for i in {1..7}; do
     get_dist test2 $i > test/actual_distances/asynchronous/$i.json
     echo $i
     json_eq test/expected/$i.json test/actual_distances/asynchronous/$i.json
