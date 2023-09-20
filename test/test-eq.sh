@@ -14,7 +14,19 @@ json_eq(){
     local actual=$(cat $2 | jq ".")
     if [ "$expected" -eq "$actual" ]; then
         #Correct
-        echo "PASS: $actual"
+        echo "PASS: $2"
+    else
+        #Mismatch so complain
+        echo "FAIL: $2"
+        echo
+        echo "Expected:"
+        echo $expected
+        echo
+        echo
+        echo "Actual:"
+        echo $actual
+        exit 1
+    fi
 }
 
 #Check that our synchronous runs have expected values first
