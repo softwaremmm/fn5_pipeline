@@ -45,7 +45,9 @@ jobs:
         python3.11 -m pdm run serve 2> pdm-serve.log &
         echo Started API
 
-        sleep 30
+        sleep 10
+        sleep 10
+        sleep 10
         
         #Give it some data and check we can access
         cd ..
