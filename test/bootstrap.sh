@@ -12,14 +12,14 @@ set -xe
 #Inserting a record should ensure that an ID of 1 works in these cases
 
 #Create species
-curl -SsL \
+curl -SsL --fail --show-error \
     --header "Content-Type: application/json"  \
     --request GET  http://0.0.0.0:8000/api/v1/species \
     -H "Authorization: Basic test-api-key" \
     -X POST \
     -d '{"species_name": "test"}'
 
-curl -SsL \
+curl -SsL --fail --show-error \
     --header "Content-Type: application/json"  \
     --request GET  http://0.0.0.0:8000/api/v1/species \
     -H "Authorization: Basic test-api-key" \

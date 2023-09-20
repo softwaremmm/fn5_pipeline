@@ -6,7 +6,7 @@ set -xe
 get_dist(){
     local species=$1
     local run_id=$2
-    curl -SsL --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/test/neighbours\?run_id\=$1 -H "Authorization: Basic test-api-key"
+    curl -SsL --fail --show-error --header "Content-Type: application/json"  --request GET  http://0.0.0.0:8000/api/v1/relatedness/$species/neighbours\?run_id\=$run_id -H "Authorization: Basic test-api-key"
 }
 
 json_eq(){
