@@ -1,5 +1,5 @@
 #!/bin/bash
-set -xe
+set -x
 
 #Insert the minimal data required to allow FN5 runs
 #This is somewhat hacky - all of the runs here are the same sample, 
@@ -10,6 +10,22 @@ set -xe
 #All of the creation endpoints return the batch/sample IDs, but where req in payloads, they are difficult to variable interpolate because of JSON and bash both requiring double quotes
 #Also, we functionally don't care what most of these values are, just that they exist
 #Inserting a record should ensure that an ID of 1 works in these cases
+
+
+
+#Wait for the API to come up
+waiting=0
+while [ $waiting -eq 0 ];do
+    sleep 5
+    curl -SsL \
+    --header "Content-Type: application/json" \
+    --request GET "http://0.0.0.0:8000/api/v1/samples" \
+    -H "Authorization: Basic test-api-key" > req.json
+    waiting=$(cat req.json | wc -c)
+    echo Got $waiting chars from API. Sleeping
+done
+
+rm req.json
 
 #Create species
 curl -SsL --fail --show-error \

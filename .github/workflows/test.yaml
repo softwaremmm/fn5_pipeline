@@ -46,20 +46,6 @@ jobs:
         python3.11 -m pdm run serve 2> pdm-serve.log &
         echo Started API
 
-        #Wait for the API to come up
-        waiting=0
-        while [ $waiting -eq 0 ];do
-          sleep 5
-          curl -SsL \
-            --header "Content-Type: application/json" \
-            --request GET "http://0.0.0.0:8000/api/v1/samples" \
-            -H "Authorization: Basic test-api-key" > req.json
-          waiting=$(cat req.json | wc -c)
-          echo Got $waiting chars from API. Sleeping
-        done
-        
-        rm req.json
-
         #Give it some data and check we can access
         cd ..
         git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git

@@ -39,5 +39,14 @@ for i in {1..6}; do
     echo
 done
 
+#Should be identical for async
+mkdir -p test/actual_distances/asynchronous
+
+for i in {1..6}; do
+    get_dist test2 $i > test/actual_distances/asynchronous/$i.json
+    echo $i
+    json_eq test/expected/$i.json test/actual_distances/asynchronous/$i.json
+    echo
+done
 
 
