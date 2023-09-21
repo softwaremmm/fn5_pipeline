@@ -38,14 +38,14 @@ jobs:
 
         python3.11 -m pdm install
 
+        #Run the DB in the background
+        python3.11 -m pdm run docker-up -d
+
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
         python3.11 -m pdm run serve &
         echo Started API
         sleep 30
-
-        #Run the DB in the background
-        python3.11 -m pdm run docker-up -d
 
         #Give it some data and check we can access
         cd ..
