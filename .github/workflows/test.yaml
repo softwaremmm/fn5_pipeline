@@ -4,6 +4,21 @@ on: [push]
 jobs:
   test:
     name: Run tests
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: mydb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
     runs-on: ubuntu-latest
 
     steps:
@@ -37,12 +52,10 @@ jobs:
         cd gpas
         git checkout 0.93.0
 
-        python3.11 -m pdm run docker-compose down -v
-
         python3.11 -m pdm install
 
         #Run the DB in the background
-        python3.11 -m pdm run docker-up -d mysql
+        #python3.11 -m pdm run docker-up -d mysql
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
