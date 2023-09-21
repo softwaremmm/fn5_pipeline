@@ -40,7 +40,7 @@ jobs:
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
-        python3.11 -m pdm run serve 2> pdm-serve.log &
+        python3.11 -m pdm run serve &
         echo Started API
         sleep 30
 
