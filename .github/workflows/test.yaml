@@ -36,7 +36,7 @@ jobs:
 
         cd gpas
 
-        docker-compose down -v
+        python3.11 -m pdm run docker-compose down -v
 
         python3.11 -m pdm install
 
