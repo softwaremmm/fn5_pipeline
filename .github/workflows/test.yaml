@@ -50,18 +50,13 @@ jobs:
         git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/gpas.git
 
         cd gpas
-        git checkout 0.93.0
 
         python3.11 -m pdm install
-
-        #Run the DB in the background
-        #python3.11 -m pdm run docker-up -d mysql
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
         python3.11 -m pdm run serve &
         echo Started API
-        sleep 30
 
         #Give it some data and check we can access
         cd ..
