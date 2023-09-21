@@ -62,7 +62,6 @@ jobs:
         cd ..
         git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git
         cd fn5_pipeline
-        git checkout add-tests
 
         #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
