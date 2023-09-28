@@ -11,7 +11,9 @@ ANSI_RESET = "\033[0m"
 process reference_compress{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path sample
         val species
@@ -62,7 +64,9 @@ process reference_compress{
 process check_lock{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path guid
         val species
@@ -124,7 +128,9 @@ process check_lock{
 process wait_for_lock{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         val species
@@ -172,7 +178,9 @@ process wait_for_lock{
 process get_batch{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path guid
         path lock
@@ -226,7 +234,9 @@ process get_batch{
 process get_saves{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path batch
@@ -283,8 +293,12 @@ process get_saves{
 //Do comparisons
 process process_batch{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
-    cpus = 6
-    memory = "8GB"
+    cpus = {
+        params.testing=="" ? 6 : 1
+    }
+    memory = {
+        params.testing=="" ? "4GB" : "1GB"
+    }
     input:
         path lock
         path all
@@ -357,7 +371,9 @@ process process_batch{
 process add_to_db{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path to_process
         path comparisons
@@ -417,7 +433,9 @@ process add_to_db{
 process clean_up{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path batch
@@ -477,7 +495,9 @@ process clean_up{
 process remove_batch{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path batch
@@ -526,7 +546,9 @@ process remove_batch{
 process release_lock{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
-    memory = "2GB"
+    memory = {
+        params.testing=="" ? "2GB" : "1GB"
+    }
     input:
         path lock
         path error_log
