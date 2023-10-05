@@ -26,7 +26,7 @@ process reference_compress{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -87,7 +87,7 @@ process check_lock{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -166,7 +166,7 @@ process wait_for_lock{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -234,7 +234,7 @@ process get_batch{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -302,7 +302,7 @@ process get_saves{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -445,7 +445,7 @@ process add_to_db{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -520,7 +520,7 @@ process clean_up{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -580,7 +580,7 @@ process remove_batch{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
@@ -629,7 +629,7 @@ process release_lock{
         if [ ${workflow.profile} == 'kubernetes' ]
         then
             #Use the secret if running via k8s
-            API_KEY=\$(cat /etc/nextflow-api-key/.api-key)
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
         else
             API_KEY="$api_token"
         fi
