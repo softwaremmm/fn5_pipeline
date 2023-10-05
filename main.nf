@@ -23,6 +23,14 @@ process reference_compress{
         path "guid"
     script:
         """
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         original_path=\$(pwd)
         sample_path=\$(pwd)/$sample
 
@@ -49,7 +57,7 @@ process reference_compress{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@\$(echo \$guid).tar.gz;type=application/gzip" \
-            -H "Authorization: Basic $api_token"
+            -H "Authorization: Basic \$API_KEY"
 
         echo \$guid > \$original_path/guid
         """ 
@@ -76,6 +84,14 @@ process check_lock{
         path "lock"
     script:
         """
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         original_path=\$(pwd)
         guid=\$(cat $guid)
 
@@ -92,7 +108,7 @@ process check_lock{
                 -H 'accept: application/json' \
                 -H 'Content-Type: multipart/form-data' \
                 -F 'file=@qc_fail_comparison.txt;type=text/plain' \
-                -H "Authorization: Basic $api_token"
+                -H "Authorization: Basic \$API_KEY"
             
             touch \$original_path/lock
             touch \$original_path/error_log
@@ -103,7 +119,7 @@ process check_lock{
         curl -SsL --fail --show-error -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/\$guid/check_lock" \
             -H 'accept: application/json' \
-            -H "Authorization: Basic $api_token" > lock.json
+            -H "Authorization: Basic \$API_KEY" > lock.json
         cat lock.json | jq ".lock" | tr -d \\" > \$original_path/lock
 
         #The lock is the literal string 'null' if added to batch
@@ -147,6 +163,14 @@ process wait_for_lock{
             exit 0
         fi
 
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         original_path=\$(pwd)
         lock=\$(cat $lock)
 
@@ -157,7 +181,7 @@ process wait_for_lock{
             curl -SsL --fail --show-error -X 'GET' \
                 '$api_url/api/v1/relatedness/$species/db/next_lock' \
                 -H 'accept: application/json' \
-                -H "Authorization: Basic $api_token" > lock.json
+                -H "Authorization: Basic \$API_KEY" > lock.json
             cat lock.json | jq ".lock" > next_lock.txt
 
             #Compare the outputs, if equal, break from the loop, else sleep and try again
@@ -207,6 +231,14 @@ process get_batch{
             exit 0
         fi
 
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         original_path=\$(pwd)
         guid=\$(cat $guid)
 
@@ -215,7 +247,7 @@ process get_batch{
         curl -SsL --fail --show-error -X 'GET' \
             '$api_url/api/v1/relatedness/$species/db/get_batch' \
             -H 'accept: application/json' \
-            -H "Authorization: Basic $api_token" > batch.json
+            -H "Authorization: Basic \$API_KEY" > batch.json
         
         cat batch.json | jq ".batch[]" | tr -d \\" > batch_guids.txt
 
@@ -266,10 +298,19 @@ process get_saves{
             touch to_process/no
             exit 0
         fi
+
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         curl -SsL --fail --show-error -X 'GET' \
             '$api_url/api/v1/relatedness/$species/download?path=all.tar.gz' \
             -H 'accept: application/gzip' \
-            -H "Authorization: Basic $api_token" > all.tar.gz
+            -H "Authorization: Basic \$API_KEY" > all.tar.gz
         
         mkdir -p to_process
 
@@ -278,7 +319,7 @@ process get_saves{
             curl -SsL --fail --show-error -X 'GET' \
                 "$api_url/api/v1/relatedness/$species/download?path=to_process/\$f.tar.gz" \
                 -H 'accept: application/gzip' \
-                -H "Authorization: Basic $api_token" > to_process/\$f.tar.gz
+                -H "Authorization: Basic \$API_KEY" > to_process/\$f.tar.gz
         done
         """
     stub:
@@ -387,7 +428,6 @@ process add_to_db{
     script:
         """
         set +e
-        cat $error_log
         
         trap "echo 'Failed to add to DB: ' >> $error_log && cat $comparisons >> $error_log && echo "" >> $error_log && exit 0" SIGINT SIGTERM ERR
 
@@ -400,6 +440,14 @@ process add_to_db{
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             exit 0
+        fi
+
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
         fi
 
         original_path=\$(pwd)
@@ -421,7 +469,7 @@ process add_to_db{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@$comparisons;type=text/plain" \
-            -H "Authorization: Basic $api_token"
+            -H "Authorization: Basic \$API_KEY"
         """
     stub:
         """
@@ -469,13 +517,21 @@ process clean_up{
             exit 0
         fi
 
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
 
         curl -SsL --fail --show-error -X 'POST' \
             '$api_url/api/v1/relatedness/$species/db/clear_batch' \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F 'file=@$batch;type=text/plain' \
-            -H "Authorization: Basic $api_token"
+            -H "Authorization: Basic \$API_KEY"
 
         #Update the saves tarball
         curl -SsL --fail --show-error -X 'POST' \
@@ -483,7 +539,7 @@ process clean_up{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@$all;type=application/gzip" \
-            -H "Authorization: Basic $api_token"
+            -H "Authorization: Basic \$API_KEY"
             
         """
     stub:
@@ -504,7 +560,7 @@ process remove_batch{
         path error_log
         val species
         val api_url
-        val api_token        
+        val api_token
     output:
         path error_log
     script:
@@ -521,6 +577,14 @@ process remove_batch{
             exit 0
         fi
 
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         #Rows of \$batch are <guid>, we need to_process/<guid>/tar.gz for deletion
         touch fixed_batch.txt
         for line in \$(cat $batch);
@@ -533,7 +597,7 @@ process remove_batch{
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
             -F "file=@fixed_batch.txt;type=text/plain" \
-            -H "Authorization: Basic $api_token"
+            -H "Authorization: Basic \$API_KEY"
 
         """
     stub:
@@ -561,10 +625,19 @@ process release_lock{
             #Sample in batch rather than lock table, so exit
             exit 0
         fi
+
+        if [ ${workflow.profile} == 'kubernetes' ]
+        then
+            #Use the secret if running via k8s
+            API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+        else
+            API_KEY="$api_token"
+        fi
+
         curl --fail --show-error -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json' \
-            -H "Authorization: Basic $api_token" \
+            -H "Authorization: Basic \$API_KEY" \
 
         #if [ -s $error_log ]; then
         #    #Error occured upstream so now we have released the lock, throw it
@@ -584,7 +657,7 @@ workflow find_neighbour_5{
         sample
         species
         api_url
-        api_token        
+        api_token
 
     main:
         /**
