@@ -47,14 +47,16 @@ curl -SsL --fail --show-error \
     --header "Content-Type: application/json"  \
     --request POST  http://127.0.0.1:8000/api/v1/batches \
     -d '{"name": "test-batch", "status": "Created", "telemetry_data": {}, "quality": null, "is_approved": false, "is_shared": true}' \
-    -H "Authorization: Basic test-api-key"
+    -H "Authorization: Basic test-api-key" > batch.json
+
+BATCH_ID=$(cat batch.json | jq ".id")
 
 #Create a sample
 touch dummy-sample-file.fastq.gz
 curl -SsL --fail --show-error \
     --header "Content-Type: application/json"  \
     --request POST  http://127.0.0.1:8000/api/v1/samples \
-    -d '{"batch_id": 1, "status": "Created", "collection_date": "2023-09-08", "control": false, "country": "GBR", "client_decontamination_reads_removed_proportion": 0, "client_decontamination_reads_in": 0, "client_decontamination_reads_out": 0, "district": "test", "instrument_platform": "illumina", "subdivision": "na", "specimen_organism": "tb", "checksum": "not-a-checksum", "is_shared": true}' \
+    -d "{\"batch_id\": $BATCH_ID, \"status\": \"Created\", \"collection_date\": \"2023-09-08\", \"control\": false, \"country\": \"GBR\", \"client_decontamination_reads_removed_proportion\": 0, \"client_decontamination_reads_in\": 0, \"client_decontamination_reads_out\": 0, \"district\": \"test\", \"instrument_platform\": \"illumina\", \"subdivision\": \"na\", \"specimen_organism\": \"tb\", \"checksum\": \"not-a-checksum\", \"is_shared\": true}" \
     -H "Authorization: Basic test-api-key" > sample.json
 
 SAMPLE_ID=$(cat sample.json | jq ".id")
