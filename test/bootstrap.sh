@@ -49,7 +49,7 @@ curl -SsL --fail --show-error \
     -d '{"name": "test-batch", "status": "Created", "telemetry_data": {}, "quality": null, "is_approved": false, "is_shared": true}' \
     -H "Authorization: Basic test-api-key" > batch.json
 
-BATCH_ID=$(cat batch.json | jq ".id")
+BATCH_ID=$(cat batch.json | jq ".id" | tr -d '"')
 
 #Create a sample
 touch dummy-sample-file.fastq.gz
@@ -59,7 +59,7 @@ curl -SsL --fail --show-error \
     -d "{\"batch_id\": $BATCH_ID, \"status\": \"Created\", \"collection_date\": \"2023-09-08\", \"control\": false, \"country\": \"GBR\", \"client_decontamination_reads_removed_proportion\": 0, \"client_decontamination_reads_in\": 0, \"client_decontamination_reads_out\": 0, \"district\": \"test\", \"instrument_platform\": \"illumina\", \"subdivision\": \"na\", \"specimen_organism\": \"tb\", \"checksum\": \"not-a-checksum\", \"is_shared\": true}" \
     -H "Authorization: Basic test-api-key" > sample.json
 
-SAMPLE_ID=$(cat sample.json | jq ".id")
+SAMPLE_ID=$(cat sample.json | jq ".id" | tr -d '"')
 
 curl -SsL --fail --show-error \
     -X 'POST' \
