@@ -10,7 +10,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: mydb
+          MYSQL_DATABASE: gpas
         ports:
           - 3306:3306
         options: >-
