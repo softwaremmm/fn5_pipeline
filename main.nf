@@ -14,6 +14,12 @@ process reference_compress{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:reference_compress"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path sample
         val species
@@ -75,6 +81,12 @@ process check_lock{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:check_lock"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path guid
         val species
@@ -147,6 +159,12 @@ process wait_for_lock{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:wait_for_lock"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path lock
         val species
@@ -205,6 +223,12 @@ process get_batch{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:get_batch"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path guid
         path lock
@@ -269,6 +293,12 @@ process get_saves{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:get_saves"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path lock
         path batch
@@ -340,6 +370,12 @@ process process_batch{
     memory = {
         params.testing=="" ? "4GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:process_batch"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path lock
         path all
@@ -415,6 +451,12 @@ process add_to_db{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:add_to_db"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path to_process
         path comparisons
@@ -484,6 +526,12 @@ process clean_up{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:clean_up"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path lock
         path batch
@@ -554,6 +602,12 @@ process remove_batch{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:remove_batch"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path lock
         path batch
@@ -613,6 +667,12 @@ process release_lock{
     memory = {
         params.testing=="" ? "2GB" : "1GB"
     }
+
+    debug true
+    pod label: "name", value: "fn5_pipeline:release_lock"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
     input:
         path lock
         path error_log
