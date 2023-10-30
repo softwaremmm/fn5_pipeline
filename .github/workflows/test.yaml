@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v4
     - name: Setup and run tests
       run: |
         set -xe
@@ -59,9 +60,9 @@ jobs:
         echo Started API
 
         #Give it some data and check we can access
-        cd ..
-        git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git
-        cd fn5_pipeline
+        # cd ..
+        # git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git
+        # cd fn5_pipeline
 
         #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
