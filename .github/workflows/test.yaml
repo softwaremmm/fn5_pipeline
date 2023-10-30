@@ -60,7 +60,7 @@ jobs:
         echo Started API
 
         #Give it some data and check we can access
-        # cd ..
+        cd .. 
         # git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git
         # cd fn5_pipeline
 
