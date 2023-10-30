@@ -76,6 +76,8 @@ jobs:
         #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
 
+        cat gpas/pdm-serve.log
+
         #Build test cases with known distances
         python3.11 test/build-test-set.py
 
@@ -88,8 +90,6 @@ jobs:
         #Test it produces expected results
         bash test/test-eq.sh
         
-
-        cat gpas/pdm-serve.log
 
 
 
