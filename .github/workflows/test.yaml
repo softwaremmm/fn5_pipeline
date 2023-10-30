@@ -23,6 +23,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install SOPS
+      run: |
+        sudo apt-get update && sudo apt-get install age -y
+        # Download the binary
+        curl -LO https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.amd64
+        mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops
+        chmod +x /usr/local/bin/sops
+        mkdir -p ~/.config/sops/age
+        echo "${{ secrets.AGE_DEV_KEY }}" > "$HOME/.config/sops/age/keys.txt"
+        
     - name: Setup and run tests
       run: |
         set -xe
@@ -36,7 +47,7 @@ jobs:
         sudo apt install python3.11
 
         #Install Nextflow
-        curl -s https://get.nextflow.io | bash
+        curl -s https://get.nextflow.io | bash 2> /dev/null
         chmod a+x nextflow
         cp nextflow /usr/local/bin
 
@@ -61,8 +72,6 @@ jobs:
 
         #Give it some data and check we can access
         cd .. 
-        # git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/fn5_pipeline.git
-        # cd fn5_pipeline
 
         #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
