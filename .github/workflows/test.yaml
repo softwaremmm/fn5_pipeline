@@ -89,6 +89,8 @@ jobs:
         bash test/test-eq.sh
         
 
+        cat gpas/pdm-serve.log
+
 
 
 
