@@ -65,12 +65,11 @@ jobs:
 
         python3.11 -m pdm install
 
-        python3.11 -m pdm run bootstrap
-
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
         python3.11 -m pdm run serve > pdm-serve.log 2>&1  &
         echo Started API
+        python3.11 -m pdm run bootstrap
 
         #Give it some data and check we can access
         cd .. 
