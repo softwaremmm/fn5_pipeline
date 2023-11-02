@@ -45,7 +45,7 @@ jobs:
         set -xe
         #Install pre-reqs
         apt update
-        apt install -y git curl openjdk-11-jdk jq
+        apt install -y git curl openjdk-17-jdk jq
         pip install pdm
 
         #Install Nextflow
