@@ -33,12 +33,6 @@ jobs:
         chmod +x /usr/local/bin/sops
         mkdir -p ~/.config/sops/age
         echo "${{ secrets.AGE_DEV_KEY }}" > "$HOME/.config/sops/age/keys.txt"
-
-    - name: Set up PDM
-      uses: pdm-project/setup-pdm@v3
-      with:
-        python-version: 3.11
-        cache: true
         
     - name: Setup and run tests
       run: |
@@ -46,6 +40,8 @@ jobs:
         #Install pre-reqs
         sudo apt update
         sudo apt install -y git curl openjdk-11-jdk jq
+        sudo apt install python3.11 python3.11-dev python3.11-venv python3-pip
+        python3.11 -m pip install pdm
 
         #Install Nextflow
         curl -s https://get.nextflow.io | bash 2> /dev/null
