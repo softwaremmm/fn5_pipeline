@@ -291,7 +291,7 @@ process get_saves{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.0.0"
     cpus = 1
     memory = {
-        params.testing=="" ? "2GB" : "1GB"
+        params.testing=="" ? "3GB" : "1GB"
     }
 
     debug true
@@ -368,7 +368,7 @@ process process_batch{
         params.testing=="" ? 6 : 1
     }
     memory = {
-        params.testing=="" ? "4GB" : "1GB"
+        params.testing=="" ? "8GB" : "1GB"
     }
 
     debug true

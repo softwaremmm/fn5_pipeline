@@ -21,6 +21,7 @@ while [ $waiting -eq 0 ];do
     --header "Content-Type: application/json" \
     --request GET "http://0.0.0.0:8000/api/v1/samples" \
     -H "Authorization: Basic test-api-key" > req.json
+    cat req.json
     waiting=$(cat req.json | wc -c)
     echo Got $waiting chars from API. Sleeping
 done
