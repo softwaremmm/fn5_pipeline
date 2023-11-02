@@ -4,6 +4,8 @@ on: [push]
 jobs:
   test:
     name: Run tests
+    container:
+        image: python:3.11
 
     services:
       mysql:
@@ -39,7 +41,6 @@ jobs:
     #     python-version: '3.11'
             
     - name: Setup and run tests
-      uses: python:3.11
       run: |
         set -xe
         #Install pre-reqs
