@@ -4,10 +4,6 @@ on: [push]
 jobs:
   test:
     name: Run tests
-    container:
-        image: python:3.11
-        ports:
-          - 3306:3306
 
     services:
       mysql:
@@ -38,17 +34,19 @@ jobs:
         mkdir -p ~/.config/sops/age
         echo "${{ secrets.AGE_DEV_KEY }}" > "$HOME/.config/sops/age/keys.txt"
     
-    # - uses: actions/setup-python@v4
-    #   with:
-    #     python-version: '3.11'
-            
     - name: Setup and run tests
       run: |
         set -xe
         #Install pre-reqs
-        apt update
-        apt install -y git curl openjdk-17-jdk jq
-        pip install pdm
+        sudo apt update
+        sudo apt install -y git curl openjdk-17-jdk jq
+
+        #Install python 3.11
+        sudo apt install wget build-essential libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev
+        sudo add-apt-repository ppa:deadsnakes/ppa
+        sudo apt install python3.11
+
+        python3.11 -m pip install pdm
 
         #Install Nextflow
         curl -s https://get.nextflow.io | bash 2> /dev/null
@@ -64,14 +62,14 @@ jobs:
 
         cd gpas
 
-        pdm install
+        python3.11 -m pdm install
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
-        pdm run serve > pdm-serve.log 2>&1  &
+        python3.11 -m pdm run serve > pdm-serve.log 2>&1  &
         sleep 10
         echo Started API
-        pdm run bootstrap
+        python3.11 -m pdm run bootstrap
 
         #Give it some data and check we can access
         cd .. 
@@ -82,7 +80,7 @@ jobs:
         cat gpas/pdm-serve.log
 
         #Build test cases with known distances
-        python test/build-test-set.py
+        python3.11 test/build-test-set.py
 
         #Run without queuing
         bash test/run-synchronous.sh
