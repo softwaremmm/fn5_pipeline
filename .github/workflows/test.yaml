@@ -6,6 +6,8 @@ jobs:
     name: Run tests
     container:
         image: python:3.11
+        ports:
+          - 3306:3306
 
     services:
       mysql:
