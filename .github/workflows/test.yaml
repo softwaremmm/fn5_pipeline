@@ -19,7 +19,7 @@ jobs:
           --health-timeout=5s
           --health-retries=3
 
-    runs-on: ubuntu-latest
+    runs-on: python:3.11
 
     steps:
     - uses: actions/checkout@v4
@@ -34,9 +34,9 @@ jobs:
         mkdir -p ~/.config/sops/age
         echo "${{ secrets.AGE_DEV_KEY }}" > "$HOME/.config/sops/age/keys.txt"
     
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+    # - uses: actions/setup-python@v4
+    #   with:
+    #     python-version: '3.11'
             
     - name: Setup and run tests
       run: |
