@@ -19,7 +19,7 @@ jobs:
           --health-timeout=5s
           --health-retries=3
 
-    runs-on: python:3.11
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -39,6 +39,7 @@ jobs:
     #     python-version: '3.11'
             
     - name: Setup and run tests
+      uses: python:3.11
       run: |
         set -xe
         #Install pre-reqs
