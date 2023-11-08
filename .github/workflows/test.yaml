@@ -41,6 +41,10 @@ jobs:
         sudo apt update
         sudo apt install -y git curl openjdk-17-jdk jq
 
+        #Docker login so we can pull. Both with and without sudo for `[sudo] nextflow run`
+        docker login lhr.ocir.io -u ${{secrets.OCR_USERNAME}} -p $(echo "${{secrets.OCR_TOKEN}}")
+        sudo docker login lhr.ocir.io -u ${{secrets.OCR_USERNAME}} -p $(echo "${{secrets.OCR_TOKEN}}")
+
         #Install python 3.11
         sudo apt install wget build-essential libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev
         sudo add-apt-repository ppa:deadsnakes/ppa
@@ -76,8 +80,6 @@ jobs:
 
         #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
-
-        cat gpas/pdm-serve.log
 
         #Build test cases with known distances
         python3.11 test/build-test-set.py
