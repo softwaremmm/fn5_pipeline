@@ -368,7 +368,7 @@ process process_batch{
         params.testing=="" ? 6 : 1
     }
     memory = {
-        params.testing=="" ? "8GB" : "1GB"
+        params.testing=="" ? "16GB" : "1GB"
     }
 
     debug true
