@@ -58,7 +58,7 @@ process reference_compress{
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
 
 
-        curl -SsL --fail --show-error -X 'POST' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
             "$api_url/api/v1/relatedness/$species/upload?path=to_process/\$(echo \$guid).tar.gz" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
@@ -115,7 +115,7 @@ process check_lock{
             g=\$(echo "\$guid" | tail -n 1)
             echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
 
-            curl -SsL --fail --show-error -X 'POST' \
+            curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
                 '$api_url/api/v1/relatedness/$species/db/add_distances' \
                 -H 'accept: application/json' \
                 -H 'Content-Type: multipart/form-data' \
@@ -128,7 +128,7 @@ process check_lock{
         fi
 
         #Add the lock
-        curl -SsL --fail --show-error -X 'GET' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/\$guid/check_lock" \
             -H 'accept: application/json' \
             -H "Authorization: Basic \$API_KEY" > lock.json
@@ -191,12 +191,13 @@ process wait_for_lock{
 
         original_path=\$(pwd)
         lock=\$(cat $lock)
+        trap "echo -e 'Failed to get lock\n' >> \$original_path/error_log && exit 0" SIGINT SIGTERM ERR 
 
         waiting=1
         while [ \$waiting -eq 1 ];
         do
             #Use the API to get the next lock in the table
-            curl -SsL --fail --show-error -X 'GET' \
+            curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
                 '$api_url/api/v1/relatedness/$species/db/next_lock' \
                 -H 'accept: application/json' \
                 -H "Authorization: Basic \$API_KEY" > lock.json
@@ -268,7 +269,7 @@ process get_batch{
 
         #Get guids for this batch
         #Split into two commands as errors are not percolated through the pipe
-        curl -SsL --fail --show-error -X 'GET' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
             '$api_url/api/v1/relatedness/$species/db/get_batch' \
             -H 'accept: application/json' \
             -H "Authorization: Basic \$API_KEY" > batch.json
@@ -337,7 +338,7 @@ process get_saves{
             API_KEY="$api_token"
         fi
 
-        curl -SsL --fail --show-error -X 'GET' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
             '$api_url/api/v1/relatedness/$species/download?path=all.tar.gz' \
             -H 'accept: application/gzip' \
             -H "Authorization: Basic \$API_KEY" > all.tar.gz
@@ -346,7 +347,7 @@ process get_saves{
 
         #Fetch the batch
         for f in \$(cat $batch); do
-            curl -SsL --fail --show-error -X 'GET' \
+            curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
                 "$api_url/api/v1/relatedness/$species/download?path=to_process/\$f.tar.gz" \
                 -H 'accept: application/gzip' \
                 -H "Authorization: Basic \$API_KEY" > to_process/\$f.tar.gz
@@ -506,7 +507,7 @@ process add_to_db{
 
         #Add to DB
 
-        curl --fail --show-error -X 'POST' \
+        curl --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
             '$api_url/api/v1/relatedness/$species/db/add_distances' \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
@@ -574,7 +575,7 @@ process clean_up{
         fi
 
 
-        curl -SsL --fail --show-error -X 'POST' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
             '$api_url/api/v1/relatedness/$species/db/clear_batch' \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
@@ -582,7 +583,7 @@ process clean_up{
             -H "Authorization: Basic \$API_KEY"
 
         #Update the saves tarball
-        curl -SsL --fail --show-error -X 'POST' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
             "$api_url/api/v1/relatedness/$species/upload?path=all.tar.gz" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
@@ -646,7 +647,7 @@ process remove_batch{
             echo -e "to_process/\$line.tar.gz" >> fixed_batch.txt
         done
 
-        curl -SsL --fail --show-error -X 'POST' \
+        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
             "$api_url/api/v1/relatedness/$species/delete" \
             -H 'accept: application/json' \
             -H 'Content-Type: multipart/form-data' \
@@ -694,7 +695,7 @@ process release_lock{
             API_KEY="$api_token"
         fi
 
-        curl --fail --show-error -X 'GET' \
+        curl --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
             "$api_url/api/v1/relatedness/$species/db/clear_lock?lock=\$(cat lock)" \
             -H 'accept: application/json' \
             -H "Authorization: Basic \$API_KEY" \
