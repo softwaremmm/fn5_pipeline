@@ -16,6 +16,25 @@ See `.github/workflows/test.yaml` for an example of how this could be done local
 
 As this test suite (and the pipeline) rely on API calls for running, as well as retriving results, `nf-test` was inappropriate.
 
+## Conventional Commits
+Use conventional commits when developing for this repo. 
+You should install the pre-commits to check your commit messages.
+
+You can install `pre-commit` using pip or conda and run
+```bash
+pre-commit install --hook-type commit-msg
+```
+
+If you have `npm` installed then you may be able to use `npx`, which is bundled with it, to avoid installing:
+```bash
+npx pre-commit install --hook-type commit-msg
+``` 
+
+Commitizen can help you write commits. 
+Install commitizen and run `cz c` or use `npx`:
+```bash
+npx cz c
+```
 
 ## Process
 ![Sequential processing flowchart](fn5-sequential-processing-idea.png)
