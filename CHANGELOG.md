@@ -1,3 +1,14 @@
+## 1.2.0 (2024-01-17)
+
+### Feat
+
+- use commitizen to manage versions and release
+
+### Fix
+
+- pre-commit hook for conventional commits
+- remove integrate subworkflows action
+
 ## v1.1.6 (2024-01-15)
 
 ## v1.1.5 (2024-01-10)
