@@ -32,6 +32,22 @@ To make commit with commitizen run
 cz c
 ```
 
+## Tags and Releases
+
+[Commitizen](https://commitizen-tools.github.io/commitizen/) is used to manage versioning of releases. This tool
+can be used to make commits to this repository. Regardless, [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) 
+are required to ensure correct version numbering and changelog population.
+
+**Do not add tags by hand.**
+
+On merging a Pull Request a [GitHub action will run](.github/workflows/bump.yaml), causing Commitizen to:
+* Determine the new [semver](https://semver.org/) based on conventional commits.
+* Replace the previous semver in [.cz.toml](.cz.toml) and other files as specified therein.
+* Update the [CHANGELOG](CHANGELOG.md) based on commit messages.
+* Commit these changes to the `main` branch.
+* Create a tag for this commit with the tag name of the newly determined semver.
+* Create a new release from this tag.
+
 ## Process
 ![Sequential processing flowchart](fn5-sequential-processing-idea.png)
 
