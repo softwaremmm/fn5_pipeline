@@ -54,6 +54,16 @@ process reference_compress{
             exit 0
         fi
 
+        for filename in \$(ls sample-out); do
+            curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
+                "$api_url/api/v1/relatedness/$species/upload?path=saves/\$filename" \
+                -H 'accept: application/json' \
+                -H 'Content-Type: multipart/form-data' \
+                -F "file=@sample-out/\$filename;type=application/octet-stream" \
+                -H "Authorization: Basic \$API_KEY"
+        done
+
+
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
 
