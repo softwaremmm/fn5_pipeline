@@ -12,4 +12,8 @@ mkdir -p data/relatedness/test/to_process
 mkdir -p data/relatedness/test/saves
 touch data/relatedness/test/all.tar.gz
 
+mkdir -p data/relatedness/test2
+mkdir -p data/relatedness/test2/to_process
+mkdir -p data/relatedness/test2/saves
+touch data/relatedness/test2/all.tar.gz
 
