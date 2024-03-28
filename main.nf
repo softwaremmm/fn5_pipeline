@@ -7,6 +7,12 @@ nextflow.enable.dsl=2
 ANSI_GREEN = "\033[1;32m"
 ANSI_RESET = "\033[0m"
 
+if ("${workflow.profile}" != 'kubernetes') {
+    params.relatedness_bucket = "$projectDir/data/relatedness"
+} else {
+    params.relatedness_bucket = "/workspace/buckets/relatedness_bucket"
+}
+
 //Ref compress sample & push to bucket
 process reference_compress{
     container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
@@ -25,6 +31,7 @@ process reference_compress{
         val species
         val api_url
         val api_token
+        path relatedness_bucket
     output:
         path "guid"
     script:
@@ -55,25 +62,14 @@ process reference_compress{
         fi
 
         for filename in \$(ls sample-out); do
-            curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
-                "$api_url/api/v1/relatedness/$species/upload?path=saves/\$filename" \
-                -H 'accept: application/json' \
-                -H 'Content-Type: multipart/form-data' \
-                -F "file=@sample-out/\$filename;type=application/octet-stream" \
-                -H "Authorization: Basic \$API_KEY"
+            cp sample-out/\$filename \$original_path/$relatedness_bucket/$species/saves/
         done
 
 
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
 
-
-        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
-            "$api_url/api/v1/relatedness/$species/upload?path=to_process/\$(echo \$guid).tar.gz" \
-            -H 'accept: application/json' \
-            -H 'Content-Type: multipart/form-data' \
-            -F "file=@\$(echo \$guid).tar.gz;type=application/gzip" \
-            -H "Authorization: Basic \$API_KEY"
+        cp \$(echo \$guid).tar.gz \$original_path/$relatedness_bucket/$species/to_process/
 
         echo \$guid > \$original_path/guid
         """ 
@@ -317,6 +313,7 @@ process get_saves{
         val species
         val api_url
         val api_token
+        path relatedness_bucket
     output:
         path "all.tar.gz"
         path "to_process/*", emit: to_process
@@ -348,19 +345,13 @@ process get_saves{
             API_KEY="$api_token"
         fi
 
-        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
-            '$api_url/api/v1/relatedness/$species/download?path=all.tar.gz' \
-            -H 'accept: application/gzip' \
-            -H "Authorization: Basic \$API_KEY" > all.tar.gz
+        cp $relatedness_bucket/$species/all.tar.gz .
         
         mkdir -p to_process
 
         #Fetch the batch
         for f in \$(cat $batch); do
-            curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'GET' \
-                "$api_url/api/v1/relatedness/$species/download?path=to_process/\$f.tar.gz" \
-                -H 'accept: application/gzip' \
-                -H "Authorization: Basic \$API_KEY" > to_process/\$f.tar.gz
+            cp $relatedness_bucket/$species/to_process/\$f.tar.gz to_process/\$f.tar.gz
         done
         """
     stub:
@@ -551,6 +542,7 @@ process clean_up{
         val species
         val api_url
         val api_token
+        path relatedness_bucket
     output:
         path error_log
     script:
@@ -593,12 +585,7 @@ process clean_up{
             -H "Authorization: Basic \$API_KEY"
 
         #Update the saves tarball
-        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
-            "$api_url/api/v1/relatedness/$species/upload?path=all.tar.gz" \
-            -H 'accept: application/json' \
-            -H 'Content-Type: multipart/form-data' \
-            -F "file=@$all;type=application/gzip" \
-            -H "Authorization: Basic \$API_KEY"
+        cp $all $relatedness_bucket/$species/all.tar.gz
             
         """
     stub:
@@ -626,6 +613,7 @@ process remove_batch{
         val species
         val api_url
         val api_token
+        path relatedness_bucket
     output:
         path error_log
     script:
@@ -650,19 +638,11 @@ process remove_batch{
             API_KEY="$api_token"
         fi
 
-        #Rows of \$batch are <guid>, we need to_process/<guid>/tar.gz for deletion
-        touch fixed_batch.txt
         for line in \$(cat $batch);
         do
-            echo -e "to_process/\$line.tar.gz" >> fixed_batch.txt
+            rm $relatedness_bucket/$species/to_process/\$line.tar.gz
         done
 
-        curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
-            "$api_url/api/v1/relatedness/$species/delete" \
-            -H 'accept: application/json' \
-            -H 'Content-Type: multipart/form-data' \
-            -F "file=@fixed_batch.txt;type=text/plain" \
-            -H "Authorization: Basic \$API_KEY"
 
         """
     stub:
@@ -729,6 +709,7 @@ workflow find_neighbour_5{
         species
         api_url
         api_token
+        relatedness_bucket
 
     main:
         /**
@@ -738,20 +719,20 @@ workflow find_neighbour_5{
         works, but definitely isn't ideal.
         */
 
-        guid = reference_compress(sample, species, api_url, api_token)
+        guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket)
         lock = check_lock(guid, species, api_url, api_token)
 
         error_log = wait_for_lock(lock, species, api_url, api_token)
 
         (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
-        (all, to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token)
+        (all, to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
 
         (comparisons, all2, error_log) = process_batch(lock, all, to_process, error_log)
 
         error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
 
-        error_log = clean_up(lock, batch, all2, error_log, species, api_url, api_token)
-        error_log = remove_batch(lock, batch, error_log, species, api_url, api_token)
+        error_log = clean_up(lock, batch, all2, error_log, species, api_url, api_token, relatedness_bucket)
+        error_log = remove_batch(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
 
         release_lock(lock, error_log, species, api_url, api_token)
 
@@ -771,10 +752,11 @@ workflow{
 
             Parameters:
             ------------------------------------------------------------------------
-            --sample    Path to the sample's FASTA file
-            --species   Name of the species this belongs to. Default = 'tb'
-            --api_url   URL for the GPAS API
-            --api_token Access token for the API
+            --sample             Path to the sample's FASTA file
+            --species            Name of the species this belongs to. Default = 'tb'
+            --api_url            URL for the GPAS API
+            --api_token          Access token for the API
+            --relatedness_bucket Path to the relatedness bucket. Default = '$projectDir/data/relatedness' for local runnning
             """
             .stripIndent()
             exit(0)
@@ -790,9 +772,10 @@ workflow{
 
         Parameters used:
         ------------------------------------------------------------------------
-        --sample    $params.sample
-        --species   $params.species
-        --api_url   $params.api_url
+        --sample             $params.sample
+        --species            $params.species
+        --api_url            $params.api_url
+        --relatedness_bucket $params.relatedness_bucket
 
         Runtime data:
         ------------------------------------------------------------------------
@@ -802,6 +785,6 @@ workflow{
         """
         .stripIndent()
         
-        find_neighbour_5(params.sample, params.species, params.api_url, params.api_token)
+        find_neighbour_5(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket)
 }
 
