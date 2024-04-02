@@ -88,6 +88,8 @@ jobs:
         #Give it some data and check we can access
         cd .. 
 
+        bash local_setup.sh
+
         #Ensure we have enough runs to test what we want
         bash test/bootstrap.sh
 

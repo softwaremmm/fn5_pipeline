@@ -15,3 +15,6 @@ test/actual_distances
 
 #Ensure we track base test fasta
 !test/sample.fasta
+
+#Keep out local bucket data too
+data/**
