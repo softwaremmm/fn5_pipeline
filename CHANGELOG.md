@@ -1,3 +1,15 @@
+## 1.2.2 (2024-04-02)
+
+### Fix
+
+- use direct bucket access rather than API
+
+## 1.2.1 (2024-03-22)
+
+### Fix
+
+- upload uncompressed saves in preparation of phylo work
+
 ## 1.2.0 (2024-01-17)
 
 ### Feat
