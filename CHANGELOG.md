@@ -1,3 +1,12 @@
+## 1.2.3 (2024-04-12)
+
+### Fix
+
+- more test deps
+- test dependencies
+- add python dev dep for tests
+- avoid using a tarball for saves
+
 ## 1.2.2 (2024-04-02)
 
 ### Fix
