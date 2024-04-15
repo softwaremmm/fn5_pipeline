@@ -59,16 +59,14 @@ Nextflow does not support this kind of try/catch behaviour natively, so use of `
 To be GDPR compliant, we need to be able to delete user's saves upon request. This is currently not implemented, but the process would need to be something like:
 1. Stop other processing. Probably through acquiring the lock, but could also be during planned downtime
 2. Take a list of GUIDs to delete
-3. Pull the saves tarball && decompress
-4. Delete each of the GUIDS from the saves:
+3. Delete each of the GUIDS from the saves:
     ```
     for guid in to_delete;
     do
         rm saves/$guid*
     done
     ```
-5. Recompress && upload
-6. Release the lock (if applicable)
+4. Release the lock (if applicable)
 
 ## Adding a new species
 To add a new species, there are a few things which need to be done to avoid (sometimes) non-descript errors.
@@ -78,6 +76,6 @@ To add a new species, there are a few things which need to be done to avoid (som
     * Without this, you'll get a 404 with no message
 3. Add a subfolder to the relatedness bucket `mkdir -p <relatedness bucket>/<species name>/to_process` or use the cloud interface
     * Without this, you'll get a 500 with no message
-4. Add a starting `all.tar.gz`. Either copy in saves (assuming run_id values are valid), or  `touch <relatedness bucket>/<species name>/all.tar.gz`.
-    * Without this, you'll get a 404 with no message
+4. Add a subfolder to the relatedness bucket `mkdir -p <relatedness bucket>/<species name>/saves` or use the cloud interface
+    * Without this, you'll get a 500 with no message
 
