@@ -315,23 +315,20 @@ process get_saves{
         val api_token
         path relatedness_bucket
     output:
-        path "all.tar.gz"
         path "to_process/*", emit: to_process
         path error_log
     script:
         """
-        trap "echo -e 'Failed to add to get saves\n' >> $error_log && touch all.tar.gz && mkdir -p to_process && touch to_process/no && exit 0" SIGINT SIGTERM ERR
+        trap "echo -e 'Failed to add to get saves\n' >> $error_log && mkdir -p to_process && touch to_process/no && exit 0" SIGINT SIGTERM ERR
         if [ -s $error_log ]; then
             #Error occured upstream so skip this step
             echo 'Skipped get_saves' >> $error_log
-            touch all.tar.gz
             mkdir -p to_process
             touch to_process/no
             exit 0
         fi        
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
-            touch all.tar.gz
             mkdir -p to_process
             touch to_process/no
             exit 0
@@ -345,8 +342,6 @@ process get_saves{
             API_KEY="$api_token"
         fi
 
-        cp $relatedness_bucket/$species/all.tar.gz .
-        
         mkdir -p to_process
 
         #Fetch the batch
@@ -356,7 +351,6 @@ process get_saves{
         """
     stub:
         """
-        touch all.tar.gz
         mkdir -p to_process
         touch to_process/filename.tar.gz
         echo Got saves
@@ -380,12 +374,12 @@ process process_batch{
 
     input:
         path lock
-        path all
         path to_process
         path error_log
+        path relatedness_bucket
+        val species
     output:
         path "comparisons.txt"
-        path "all.tar.gz"
         path error_log
     script:
         """
@@ -396,7 +390,6 @@ process process_batch{
             echo -e 'Failed to process batch' >> \$original_path/$error_log
             echo -e '$to_process \n' >> \$original_path/$error_log
             touch \$original_path/comparisons.txt
-            touch \$original_path/all.tar.gz
             exit 0
         }
 
@@ -404,24 +397,43 @@ process process_batch{
             #Error occured upstream so skip this step
             echo 'Skipped process_batch' >> $error_log
             touch comparisons.txt
-            touch "all.tar.gz"
             exit 0
         fi
         if ! [ -s $lock ]; then
             #Sample in batch rather than lock table, so exit
             touch comparisons.txt
-            touch "all.tar.gz"
             exit 0
         fi
 
         mkdir -p /FN5/batch
         mkdir -p /FN5/saves
 
-        #Extract existing saves
-        #Only decompress if not empty
-        if [ -s all.tar.gz ]; then
-            tar --use-compress-program=pigz -xf all.tar.gz -C /FN5
-        fi
+
+        # Check if we have up to date saves in both the bucket and PVC
+        # Merging the saves as required to ensure both are up to date
+        # Use the PVC for actual computation though for speed
+        
+        # Ideally, this shouldn't need to do anything, but check anyway
+        mkdir -p /workspace/relatedness-saves/$species
+    
+        # This could take ~20s but worth it for the check
+        ls \$original_path/$relatedness_bucket/$species/saves > bucket-saves.txt
+        ls /workspace/relatedness-saves/$species > pvc-saves.txt
+        
+        # Check if there's any bucket saves we haven't got yet
+        # This is a neat way to get set difference of files https://stackoverflow.com/a/13038235
+        sort bucket-saves.txt pvc-saves.txt pvc-saves.txt | uniq -u > not-in-pvc.txt
+        sort pvc-saves.txt bucket-saves.txt bucket-saves.txt | uniq -u > not-in-bucket.txt
+
+        # Sync the PVC with the bucket
+        for filename in \$(cat not-in-pvc.txt); do
+            cp \$original_path/$relatedness_bucket/$species/saves/\$filename /workspace/relatedness-saves/$species
+        done
+
+        # Sync the bucket with the PVC - this should only do stuff if there was an error
+        for filename in \$(cat not-in-bucket.txt); do
+            cp /workspace/relatedness-saves/$species/\$filename \$original_path/$relatedness_bucket/$species/saves/
+        done
 
         #Decompress all of the samples in this batch
         to_process=\$(echo $to_process)
@@ -432,16 +444,14 @@ process process_batch{
 
         cd /FN5
 
-        ./fn5 --add_batch batch --cutoff 20 > \$original_path/comparisons.txt
+        ./fn5 --add_batch batch --cutoff 20 --saves_dir /workspace/relatedness-saves/$species > \$original_path/comparisons.txt
 
-        mv batch/* saves
-
-        tar --use-compress-program=pigz -cf \$original_path/all.tar.gz saves
+        cp -f batch/* \$original_path/$relatedness_bucket/$species/saves
+        cp -f batch/* /workspace/relatedness-saves/$species
         """
     stub:
         """
         touch comparisons.txt
-        touch all.tar.gz
         echo Processed batch
         """
 }
@@ -537,7 +547,6 @@ process clean_up{
     input:
         path lock
         path batch
-        path all
         path error_log
         val species
         val api_url
@@ -584,9 +593,6 @@ process clean_up{
             -F 'file=@$batch;type=text/plain' \
             -H "Authorization: Basic \$API_KEY"
 
-        #Update the saves tarball
-        cp $all $relatedness_bucket/$species/all.tar.gz
-            
         """
     stub:
         """
@@ -725,13 +731,13 @@ workflow find_neighbour_5{
         error_log = wait_for_lock(lock, species, api_url, api_token)
 
         (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
-        (all, to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
+        (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
 
-        (comparisons, all2, error_log) = process_batch(lock, all, to_process, error_log)
+        (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, species)
 
         error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
 
-        error_log = clean_up(lock, batch, all2, error_log, species, api_url, api_token, relatedness_bucket)
+        error_log = clean_up(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
         error_log = remove_batch(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
 
         release_lock(lock, error_log, species, api_url, api_token)
