@@ -1,3 +1,10 @@
+## 1.2.5 (2024-04-15)
+
+### Fix
+
+- species specific PVC cache
+- use a cache on the PVC for speed
+
 ## 1.2.4 (2024-04-12)
 
 ### Fix
