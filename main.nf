@@ -414,11 +414,11 @@ process process_batch{
         # Use the PVC for actual computation though for speed
         
         # Ideally, this shouldn't need to do anything, but check anyway
-        mkdir -p /workspace/relatedness-saves
+        mkdir -p /workspace/relatedness-saves/$species
     
         # This could take ~20s but worth it for the check
         ls \$original_path/$relatedness_bucket/$species/saves > bucket-saves.txt
-        ls /workspace/relatedness-saves > pvc-saves.txt
+        ls /workspace/relatedness-saves/$species > pvc-saves.txt
         
         # Check if there's any bucket saves we haven't got yet
         # This is a neat way to get set difference of files https://stackoverflow.com/a/13038235
@@ -427,12 +427,12 @@ process process_batch{
 
         # Sync the PVC with the bucket
         for filename in \$(cat not-in-pvc.txt); do
-            cp \$original_path/$relatedness_bucket/$species/saves/\$filename /workspace/relatedness-saves/
+            cp \$original_path/$relatedness_bucket/$species/saves/\$filename /workspace/relatedness-saves/$species
         done
 
         # Sync the bucket with the PVC - this should only do stuff if there was an error
         for filename in \$(cat not-in-bucket.txt); do
-            cp /workspace/relatedness-saves/\$filename \$original_path/$relatedness_bucket/$species/saves/
+            cp /workspace/relatedness-saves/$species/\$filename \$original_path/$relatedness_bucket/$species/saves/
         done
 
         #Decompress all of the samples in this batch
@@ -444,10 +444,10 @@ process process_batch{
 
         cd /FN5
 
-        ./fn5 --add_batch batch --cutoff 20 --saves_dir /workspace/relatedness-saves > \$original_path/comparisons.txt
+        ./fn5 --add_batch batch --cutoff 20 --saves_dir /workspace/relatedness-saves/$species > \$original_path/comparisons.txt
 
         cp -f batch/* \$original_path/$relatedness_bucket/$species/saves
-        cp -f batch/* /workspace/relatedness-saves
+        cp -f batch/* /workspace/relatedness-saves/$species
         """
     stub:
         """
