@@ -61,11 +61,6 @@ process reference_compress{
             exit 0
         fi
 
-        for filename in \$(ls sample-out); do
-            cp sample-out/\$filename \$original_path/$relatedness_bucket/$species/saves/
-        done
-
-
         cd sample-out
         tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
 
