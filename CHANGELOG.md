@@ -1,3 +1,9 @@
+## 1.2.6 (2024-04-16)
+
+### Fix
+
+- stop adding to saves before processing
+
 ## 1.2.5 (2024-04-15)
 
 ### Fix
