@@ -49,7 +49,7 @@ On merging a Pull Request a [GitHub action will run](.github/workflows/bump.yaml
 * Create a new release from this tag.
 
 ## Process
-![Sequential processing flowchart](fn5-sequential-processing-idea.png)
+![Sequential processing flowchart](fn5-sequential-processing.drawio.png)
 
 ## Error handling
 As we are using a distributed locking mechanism, it is important to ensure that the lock is released upon failure.
