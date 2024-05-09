@@ -443,6 +443,16 @@ process process_batch{
 
         cp -f batch/* \$original_path/$relatedness_bucket/$species/saves
         cp -f batch/* /workspace/relatedness-saves/$species
+
+        #TODO: REMOVE AS REQUIRED
+        # At this point, everything on the PVC should be new-style saves
+        # So clear old-style saves from the bucket (if existing)
+        for save in \$(cat \$original_path/bucket-saves.txt); do
+            if [[ \$save == *.fn5 ]]; then
+                continue
+            fi
+            rm \$original_path/$relatedness_bucket/$species/saves/\$save
+        done
         """
     stub:
         """
