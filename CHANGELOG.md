@@ -1,3 +1,10 @@
+## 1.2.7 (2024-05-20)
+
+### Fix
+
+- update test cases
+- pass through arbitrary reference genomes/masks/cutoffs
+
 ## 1.2.6 (2024-04-16)
 
 ### Fix

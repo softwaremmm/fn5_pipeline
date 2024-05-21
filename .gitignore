@@ -15,6 +15,8 @@ test/actual_distances
 
 #Ensure we track base test fasta
 !test/sample.fasta
+!test/NC_000962.3.fasta
+!test/tb-exclude.txt
 
 #Keep out local bucket data too
 data/**

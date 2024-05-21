@@ -32,6 +32,9 @@ process reference_compress{
         val api_url
         val api_token
         path relatedness_bucket
+        path ref_fasta
+        path mask
+        val cutoff
     output:
         path "guid"
     script:
@@ -51,7 +54,7 @@ process reference_compress{
 
         mkdir -p sample-out
 
-        guid=\$(./fn5 --reference_compress \$sample_path --guid $params.run_id --saves_dir sample-out)
+        guid=\$(./fn5 --reference_compress \$sample_path --guid $params.run_id --saves_dir sample-out --reference \$original_path/$ref_fasta --mask \$original_path/$mask --cutoff $cutoff)
 
         #Check if this was a QC fail or not
         if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
@@ -722,6 +725,9 @@ workflow find_neighbour_5{
         api_url
         api_token
         relatedness_bucket
+        ref_fasta
+        mask
+        cutoff
 
     main:
         /**
@@ -731,7 +737,7 @@ workflow find_neighbour_5{
         works, but definitely isn't ideal.
         */
 
-        guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket)
+        guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket, ref_fasta, mask, cutoff)
         lock = check_lock(guid, species, api_url, api_token)
 
         error_log = wait_for_lock(lock, species, api_url, api_token)
@@ -769,6 +775,9 @@ workflow{
             --api_url            URL for the GPAS API
             --api_token          Access token for the API
             --relatedness_bucket Path to the relatedness bucket. Default = '$projectDir/data/relatedness' for local runnning
+            --ref_fasta          Path to the reference FASTA file
+            --mask               Path to the genome mask file
+            --cutoff             Cutoff for the distance calculation
             """
             .stripIndent()
             exit(0)
@@ -788,6 +797,9 @@ workflow{
         --species            $params.species
         --api_url            $params.api_url
         --relatedness_bucket $params.relatedness_bucket
+        --ref_fasta          $params.ref_fasta
+        --mask               $params.mask
+        --cutoff             $params.cutoff
 
         Runtime data:
         ------------------------------------------------------------------------
@@ -797,6 +809,6 @@ workflow{
         """
         .stripIndent()
         
-        find_neighbour_5(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket)
+        find_neighbour_5(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.ref_fasta, params.mask, params.cutoff)
 }
 
