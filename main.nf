@@ -452,7 +452,7 @@ process process_batch{
         # So clear sync new-style saves to the bucket and old-style saves from the bucket (if existing)
         # This shouldn't add much (significant) overhead if there's no old-style saves
 
-        ls /workspace/relatedness-saves/$species > pvc-saves-new.txt
+        ls /workspace/relatedness-saves/$species > pvc-saves2.txt
         sort pvc-saves2.txt bucket-saves.txt bucket-saves.txt | uniq -u > not-in-bucket2.txt
 
         # Sync the bucket with the PVC now that the PVC should only contain new-style saves
