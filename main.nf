@@ -15,7 +15,7 @@ if ("${workflow.profile}" != 'kubernetes') {
 
 //Ref compress sample & push to bucket
 process reference_compress{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -80,7 +80,7 @@ process reference_compress{
 
 //Check lock
 process check_lock{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -158,7 +158,7 @@ process check_lock{
 
 //Wait for lock
 process wait_for_lock{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -223,7 +223,7 @@ process wait_for_lock{
 
 //Get batch
 process get_batch{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -293,7 +293,7 @@ process get_batch{
 
 //Pull saves from bucket
 process get_saves{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "3GB" : "1GB"
@@ -357,7 +357,7 @@ process get_saves{
 
 //Do comparisons
 process process_batch{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = {
         params.testing=="" ? 6 : 1
     }
@@ -446,6 +446,27 @@ process process_batch{
 
         cp -f batch/* \$original_path/$relatedness_bucket/$species/saves
         cp -f batch/* /workspace/relatedness-saves/$species
+
+        #TODO: REMOVE ONCE DEPLOYED TO ALL ENVS
+        # At this point, everything on the PVC should be new-style saves
+        # So clear sync new-style saves to the bucket and old-style saves from the bucket (if existing)
+        # This shouldn't add much (significant) overhead if there's no old-style saves
+
+        ls /workspace/relatedness-saves/$species > \$original_path/pvc-saves2.txt
+        sort \$original_path/pvc-saves2.txt \$original_path/bucket-saves.txt \$original_path/bucket-saves.txt | uniq -u > \$original_path/not-in-bucket2.txt
+
+        # Sync the bucket with the PVC now that the PVC should only contain new-style saves
+        for filename in \$(cat \$original_path/not-in-bucket2.txt); do
+            cp /workspace/relatedness-saves/$species/\$filename \$original_path/$relatedness_bucket/$species/saves/
+        done
+
+        # Remove old-style saves from the bucket
+        for save in \$(cat \$original_path/bucket-saves.txt); do
+            if [[ \$save == *.fn5 ]]; then
+                continue
+            fi
+            rm \$original_path/$relatedness_bucket/$species/saves/\$save
+        done
         """
     stub:
         """
@@ -456,7 +477,7 @@ process process_batch{
 
 //Add to DB
 process add_to_db{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -531,7 +552,7 @@ process add_to_db{
 
 //Update bucket
 process clean_up{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -599,7 +620,7 @@ process clean_up{
 }
 
 process remove_batch{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
@@ -657,7 +678,7 @@ process remove_batch{
 
 //Release lock
 process release_lock{
-    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v1.1.0"
+    container = "lhr.ocir.io/lrbvkel2wjot/oxfordmmm/fn5:v2.0.2"
     cpus = 1
     memory = {
         params.testing=="" ? "2GB" : "1GB"
