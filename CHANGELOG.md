@@ -1,3 +1,19 @@
+## 2.0.0 (2024-05-22)
+
+### Feat
+
+- first pass at auto-migration to new saves
+- auto-migrate to new style saves
+
+### Fix
+
+- right filename pt2
+- use right filename
+- sync pvc to bucket after updating saves before clearing bucket
+- use functional FN5 container
+- bump container version
+- merge origin
+
 ## 1.2.7 (2024-05-20)
 
 ### Fix
