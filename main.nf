@@ -34,7 +34,6 @@ process reference_compress{
         path relatedness_bucket
         path ref_fasta
         path mask
-        val cutoff
     output:
         path "guid"
     script:
@@ -54,7 +53,7 @@ process reference_compress{
 
         mkdir -p sample-out
 
-        guid=\$(./fn5 --reference_compress \$sample_path --guid $params.run_id --saves_dir sample-out --reference \$original_path/$ref_fasta --mask \$original_path/$mask --cutoff $cutoff)
+        guid=\$(./fn5 --reference_compress \$sample_path --guid $params.run_id --saves_dir sample-out --reference \$original_path/$ref_fasta --mask \$original_path/$mask)
 
         #Check if this was a QC fail or not
         if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
@@ -376,6 +375,7 @@ process process_batch{
         path error_log
         path relatedness_bucket
         val species
+        val cutoff
     output:
         path "comparisons.txt"
         path error_log
@@ -442,7 +442,7 @@ process process_batch{
 
         cd /FN5
 
-        ./fn5 --add_batch batch --cutoff 20 --saves_dir /workspace/relatedness-saves/$species > \$original_path/comparisons.txt
+        ./fn5 --add_batch batch --cutoff $cutoff --saves_dir /workspace/relatedness-saves/$species > \$original_path/comparisons.txt
 
         cp -f batch/* \$original_path/$relatedness_bucket/$species/saves
         cp -f batch/* /workspace/relatedness-saves/$species
@@ -747,7 +747,7 @@ workflow find_neighbour_5{
         works, but definitely isn't ideal.
         */
 
-        guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket, ref_fasta, mask, cutoff)
+        guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket, ref_fasta, mask)
         lock = check_lock(guid, species, api_url, api_token)
 
         error_log = wait_for_lock(lock, species, api_url, api_token)
@@ -755,7 +755,7 @@ workflow find_neighbour_5{
         (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
         (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
 
-        (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, species)
+        (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, species, cutoff)
 
         error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
 
