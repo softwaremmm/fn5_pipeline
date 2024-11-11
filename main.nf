@@ -21,7 +21,6 @@ process reference_compress{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:reference_compress"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -85,7 +84,6 @@ process check_lock{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:check_lock"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -163,7 +161,6 @@ process wait_for_lock{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:wait_for_lock"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -228,7 +225,6 @@ process get_batch{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:get_batch"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -298,7 +294,6 @@ process get_saves{
         params.testing=="" ? "3GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:get_saves"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -364,7 +359,6 @@ process process_batch{
         params.testing=="" ? "32GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:process_batch"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -483,7 +477,6 @@ process add_to_db{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:add_to_db"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -558,7 +551,6 @@ process clean_up{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:clean_up"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -626,7 +618,6 @@ process remove_batch{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:remove_batch"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
@@ -684,7 +675,6 @@ process release_lock{
         params.testing=="" ? "2GB" : "1GB"
     }
 
-    debug true
     pod label: "name", value: "fn5_pipeline:release_lock"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
