@@ -5,3 +5,14 @@ repos:
       - id: commitizen
         stages:
           - commit-msg
+  - hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - exclude: mkdocs.yml
+        id: check-yaml
+      - id: check-json
+      - id: detect-private-key
+      - id: check-merge-conflict
+      - id: check-docstring-first
+    repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0

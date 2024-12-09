@@ -1,0 +1,26 @@
+name: Validate Commits
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: "${{ secrets.PAT_TOKEN }}"
+          fetch-depth: 0
+      - name: Install Commitizen
+        run: |
+          python3 -m pip install commitizen==3.13.0
+      - name: Validate commits
+        if: github.ref != 'refs/heads/main'
+        run: |
+          cz check --rev-range origin/main..
