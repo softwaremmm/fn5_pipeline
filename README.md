@@ -8,7 +8,7 @@ sudo nextflow run . -profile docker -latest --api_url <api URL> --sample <fasta 
 ```
 Where:
 * `<api URL>` is the URL for the API
-* `<fasta path>` is the full (absolute) path to a sample's FASTA file  
+* `<fasta path>` is the full (absolute) path to a sample's FASTA file
 
 ## Testing
 For the sake of your sanity, don't run the unit tests locally. The github actions is setup to install and run everything required, as well as pre-populate required records, and build the test dataset. This **can** be done locally, but it's up to you to ensure everything is populated!
@@ -16,37 +16,16 @@ See `.github/workflows/test.yaml` for an example of how this could be done local
 
 As this test suite (and the pipeline) rely on API calls for running, as well as retriving results, `nf-test` was inappropriate.
 
-## Conventional Commits
-Use conventional commits when developing for this repo. 
-You should install the pre-commit hooks to check your commit messages.
-You can also install `commitizen` to help with writing conventional commits.
-You can install both through pip/conda. Or see [wiki for other options](https://github.com/GlobalPathogenAnalysisService/Wiki/blob/main/Commitizen.md#installing-commitizenpre-commit)
-
-To install hooks run
+## Tags, Releases, and Committing
+Use conventional commits. This is enforced with commitizen validate action and pre-commit hooks:
 ```bash
-pre-commit install --hook-type commit-msg
+pre-commit install
 ```
 
-To make commit with commitizen run
-```bash
-cz c
-```
-
-## Tags and Releases
-
-[Commitizen](https://commitizen-tools.github.io/commitizen/) is used to manage versioning of releases. This tool
-can be used to make commits to this repository. Regardless, [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) 
-are required to ensure correct version numbering and changelog population.
-
-**Do not add tags by hand.**
-
-On merging a Pull Request a [GitHub action will run](.github/workflows/bump.yaml), causing Commitizen to:
-* Determine the new [semver](https://semver.org/) based on conventional commits.
-* Replace the previous semver in [.cz.toml](.cz.toml) and other files as specified therein.
-* Update the [CHANGELOG](CHANGELOG.md) based on commit messages.
-* Commit these changes to the `main` branch.
-* Create a tag for this commit with the tag name of the newly determined semver.
-* Create a new release from this tag.
+This repo uses a standard gitflow approach, so changes should be first merged into develop and then released to main.
+- In the develop branch semantic versioning is not used. Instead you can reference the commit hash to use it in a workflow.
+- In a release branch you can create a release candidate with `cz bump a.b.c-rcX`. This also creates a tag.
+- When release branch is ready for main run `cz bump a.b.c --files-only`. Manually write a human descriptive changelog. Then push these changes to main and make a release/tag there.
 
 ## Process
 ![Sequential processing flowchart](fn5-sequential-processing.drawio.png)
@@ -78,4 +57,3 @@ To add a new species, there are a few things which need to be done to avoid (som
     * Without this, you'll get a 500 with no message
 4. Add a subfolder to the relatedness bucket `mkdir -p <relatedness bucket>/<species name>/saves` or use the cloud interface
     * Without this, you'll get a 500 with no message
-

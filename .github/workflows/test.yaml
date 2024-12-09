@@ -1,5 +1,9 @@
 name: Run tests
-on: [push]
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - "*"
 
 jobs:
   test:
@@ -26,13 +30,6 @@ jobs:
       with:
         token: "${{ secrets.PAT_TOKEN }}"
         fetch-depth: 0
-    - name: Install Commitizen
-      run: |
-        python3 -m pip install commitizen>=3.7.0
-    - name: Validate commits
-      if: github.ref != 'refs/heads/main'
-      run: |
-        cz check --rev-range origin/main..
 
     - name: Install SOPS
       run: |
@@ -43,7 +40,7 @@ jobs:
         chmod +x /usr/local/bin/sops
         mkdir -p ~/.config/sops/age
         echo "${{ secrets.AGE_DEV_KEY }}" > "$HOME/.config/sops/age/keys.txt"
-    
+
     - name: Setup and run tests
       run: |
         set -xe
@@ -86,7 +83,7 @@ jobs:
         python3.11 -m pdm run bootstrap
 
         #Give it some data and check we can access
-        cd .. 
+        cd ..
 
         bash local_setup.sh
 
@@ -104,9 +101,3 @@ jobs:
 
         #Test it produces expected results
         bash test/test-eq.sh
-        
-
-
-
-
-
