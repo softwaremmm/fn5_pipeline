@@ -57,7 +57,7 @@ jobs:
         sudo add-apt-repository ppa:deadsnakes/ppa
         sudo apt install python3.11 python3.11-dev
 
-        python3.11 -m pip install pdm
+        curl -LsSf https://astral.sh/uv/install.sh | sh
 
         #Install Nextflow
         curl -s https://get.nextflow.io | bash 2> /dev/null
@@ -69,18 +69,17 @@ jobs:
         git config --global user.name "gpas-github-bot"
 
         #Get the gpas repo and set it up
-        git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/gpas.git
+        git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/pathogena-portal.git
 
-        cd gpas
+        cd pathogena-portal
 
-        python3.11 -m pdm install
+        uv sync
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
-        python3.11 -m pdm run serve > pdm-serve.log 2>&1  &
+        uv run gpas-serve > uv-serve.log 2>&1  &
         sleep 10
         echo Started API
-        python3.11 -m pdm run bootstrap
 
         #Give it some data and check we can access
         cd ..
