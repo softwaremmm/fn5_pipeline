@@ -74,14 +74,16 @@ jobs:
         cd pathogena-portal
 
         uv sync
+        source .venv/bin/activate
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
-        uv run gpas-serve > uv-serve.log 2>&1  &
+        python3.12 -m gpas.api > uv-serve.log 2>&1  &
         sleep 10
         echo Started API
 
         #Give it some data and check we can access
+        python3.12 ./priv/bootstrap_db.py
         cd ..
 
         bash local_setup.sh
