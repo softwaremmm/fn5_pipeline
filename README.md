@@ -4,7 +4,7 @@ Nextflow wrapper for FN5. Enables auto-queuing and auto-batching of samples for 
 ## Running locally with docker
 Requires an API to be running to handle database and bucket operations. Run `bash local_setup.sh` on first run to ensure the expected bucket structure exists.
 ```
-sudo nextflow run . -profile docker -latest --api_url <api URL> --sample <fasta path>
+sudo nextflow run . -profile docker -latest --api_url <api URL> --sample <fasta path> --ref_fasta <reference fasta path> --mask <mask path> --cutoff <snp distance cutoff>
 ```
 Where:
 * `<api URL>` is the URL for the API

@@ -54,13 +54,21 @@ workflow {
         """.stripIndent()
     )
 
-    find_neighbour_5(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.ref_fasta, params.mask, params.cutoff)
+    // check if fasta input is singular or a glob
+    if (params.sample.contains("*")) {
+        sample_ch = Channel.fromPath(params.sample).map { path -> tuple(path.baseName, path) }
+    }
+    else {
+        sample_ch = Channel.fromPath(params.sample).map { path -> tuple("sample", path) }
+    }
+    sample_ch.view()
+    find_neighbour_5(sample_ch, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.ref_fasta, params.mask, params.cutoff)
 }
 
 //Split into separate workflow to enable importing
 workflow find_neighbour_5 {
     take:
-    sample
+    sample_ch
     species
     api_url
     api_token
@@ -77,22 +85,22 @@ workflow find_neighbour_5 {
         works, but definitely isn't ideal.
         */
 
-    guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket, ref_fasta, mask)
+    guid = reference_compress(sample_ch, species, api_url, api_token, relatedness_bucket, ref_fasta, mask)
     lock = check_lock(guid, species, api_url, api_token)
 
     error_log = wait_for_lock(lock, species, api_url, api_token)
 
-    (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
-    (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
+    (batch, error_log) = get_batch(guid.join(lock).join(error_log), species, api_url, api_token)
+    (to_process, error_log) = get_saves(lock.join(batch).join(error_log), species, api_url, api_token, relatedness_bucket)
 
-    (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, species, cutoff)
+    (comparisons, error_log) = process_batch(lock.join(to_process).join(error_log), relatedness_bucket, species, cutoff)
 
-    error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
+    error_log = add_to_db(to_process.join(comparisons).join(lock).join(error_log), species, api_url, api_token)
 
-    error_log = clean_up(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
-    error_log = remove_batch(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
+    error_log = clean_up(lock.join(batch).join(error_log), species, api_url, api_token, relatedness_bucket)
+    error_log = remove_batch(lock.join(batch).join(error_log), species, api_url, api_token, relatedness_bucket)
 
-    release_lock(lock, error_log, species, api_url, api_token)
+    release_lock(lock.join(error_log), species, api_url, api_token)
 
     emit:
     error_log
@@ -112,7 +120,7 @@ process reference_compress {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path sample
+    tuple val(sample_name), path(sample)
     val species
     val api_url
     val api_token
@@ -121,7 +129,7 @@ process reference_compress {
     path mask
 
     output:
-    path "guid"
+    tuple val(sample_name), path("guid")
 
     script:
     """
@@ -178,13 +186,13 @@ process check_lock {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path guid
+    tuple val(sample_name), path(guid)
     val species
     val api_url
     val api_token
 
     output:
-    path "lock"
+    tuple val(sample_name), path("lock")
 
     script:
     """
@@ -257,13 +265,13 @@ process wait_for_lock {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path lock
+    tuple val(sample_name), path(lock)
     val species
     val api_url
     val api_token
 
     output:
-    path "error_log"
+    tuple val(sample_name), path("error_log")
 
     script:
     //Using the Nextflow `when` guard didn't seem to work for checking if $lock is empty...
@@ -324,16 +332,14 @@ process get_batch {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path guid
-    path lock
-    path error_log
+    tuple val(sample_name), path(guid), path(lock), path(error_log)
     val species
     val api_url
     val api_token
 
     output:
-    path "batch_guids.txt"
-    path error_log
+    tuple val(sample_name), path("batch_guids.txt")
+    tuple val(sample_name), path(error_log)
 
     script:
     """
@@ -395,17 +401,15 @@ process get_saves {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path lock
-    path batch
-    path error_log
+    tuple val(sample_name), path(lock), path(batch), path(error_log)
     val species
     val api_url
     val api_token
     path relatedness_bucket
 
     output:
-    path "to_process/*", emit: to_process
-    path error_log
+    tuple val(sample_name), path("to_process/*"), emit: to_process
+    tuple val(sample_name), path(error_log)
 
     script:
     """
@@ -463,16 +467,14 @@ process process_batch {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path lock
-    path to_process
-    path error_log
+    tuple val(sample_name), path(lock), path(to_process), path(error_log)
     path relatedness_bucket
     val species
     val cutoff
 
     output:
-    path "comparisons.txt"
-    path error_log
+    tuple val(sample_name), path("comparisons.txt")
+    tuple val(sample_name), path(error_log)
 
     script:
     """
@@ -584,16 +586,13 @@ process add_to_db {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path to_process
-    path comparisons
-    path lock
-    path error_log
+    tuple val(sample_name), path(to_process), path(comparisons), path(lock), path(error_log)
     val species
     val api_url
     val api_token
 
     output:
-    path error_log
+    tuple val(sample_name), path(error_log)
 
     script:
     """
@@ -661,16 +660,14 @@ process clean_up {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path lock
-    path batch
-    path error_log
+    tuple val(sample_name), path(lock), path(batch), path(error_log)
     val species
     val api_url
     val api_token
     path relatedness_bucket
 
     output:
-    path error_log
+    tuple val(sample_name), path(error_log)
 
     script:
     """
@@ -730,16 +727,14 @@ process remove_batch {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path lock
-    path batch
-    path error_log
+    tuple val(sample_name), path(lock), path(batch), path(error_log)
     val species
     val api_url
     val api_token
     path relatedness_bucket
 
     output:
-    path error_log
+    tuple val(sample_name), path(error_log)
 
     script:
     """
@@ -788,8 +783,7 @@ process release_lock {
     pod label: "run_id", value: "${params.run_id}"
 
     input:
-    path lock
-    path error_log
+    tuple val(sample_name), path(lock), path(error_log)
     val species
     val api_url
     val api_token
