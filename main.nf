@@ -767,6 +767,8 @@ process remove_batch {
     do
         rm ${relatedness_bucket}/${species}/to_process/\$line.tar.gz
     done
+    # Clean up the index sample's to_process file too
+    rm ${relatedness_bucket}/${species}/to_process/${params.run_id}.tar.gz
     """
 
     stub:
