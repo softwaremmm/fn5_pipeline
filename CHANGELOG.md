@@ -1,3 +1,9 @@
+## 2.1.0
+
+### Chores
+
+- Adopt Nextflow language server for linting and consistent coding style
+
 ## 2.0.2 (2024-11-11)
 
 ### Fix
