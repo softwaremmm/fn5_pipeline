@@ -73,22 +73,20 @@ jobs:
 
         cd pathogena-portal
 
+        # Ensure uv is using 3.12
         uv python install 3.12
         uv python pin 3.12
         uv sync
-        # source .venv/bin/activate
 
         #Setup the API
         #Note that as this runs in the bg, it doesn't always start in order here
         export SHOULD_RUN_MIGRATIONS=TRUE
         uv run gpas-serve > uv-serve.log 2>&1  &
-        # python3.12 -m gpas.api > uv-serve.log 2>&1  &
         sleep 30
         echo Started API
 
         #Give it some data and check we can access
-        uv run ./priv/bootstrap_db.py || cat uv-serve.log
-        exit 1
+        uv run ./priv/bootstrap_db.py
         cd ..
 
         bash local_setup.sh
