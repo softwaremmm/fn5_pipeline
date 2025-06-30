@@ -1,3 +1,11 @@
+## 2.1.1
+
+- chore: Parameterise container prefix
+
+## 2.1.0
+
+- Nextflow language server
+
 ## 2.0.2 (2024-11-11)
 
 ### Fix
