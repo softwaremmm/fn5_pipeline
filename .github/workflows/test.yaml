@@ -74,8 +74,8 @@ jobs:
         cd pathogena-portal
 
         # Ensure uv is using 3.12
-        uv python install 3.12
-        uv python pin 3.12
+        uv python install 3.13
+        uv python pin 3.13
         uv sync
 
         #Setup the API
