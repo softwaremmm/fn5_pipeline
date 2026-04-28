@@ -83,14 +83,14 @@ workflow find_neighbour_5 {
     error_log = wait_for_lock(lock, species, api_url, api_token)
 
     (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
-    (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
+    (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket, "tar.gz")
 
     (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, species, cutoff)
 
-    error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
+    error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token, "tar.gz")
 
     error_log = clean_up(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
-    error_log = remove_batch(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
+    error_log = remove_batch(lock, batch, error_log, species, api_url, api_token, relatedness_bucket, "tar.gz")
 
     release_lock(lock, error_log, species, api_url, api_token)
 
@@ -98,6 +98,92 @@ workflow find_neighbour_5 {
     error_log
 }
 
+workflow mash_distances {
+    take:
+    sample
+    species
+    api_url
+    api_token
+    relatedness_bucket
+    ref_fasta
+
+    main:
+    /**
+        Error handling here is obviously not as neat I'd like it,
+        but Nextflow doesn't support try/catch to call another process
+        so in absence of a neat solution, use of `trap` and percolating an error log
+        works, but definitely isn't ideal.
+        */
+
+    guid = mash_sketch(sample, species, api_url, api_token, relatedness_bucket, ref_fasta)
+    lock = check_lock(guid, species, api_url, api_token)
+
+    error_log = wait_for_lock(lock, species, api_url, api_token)
+
+    (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
+    (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket, "msh")
+
+    (comparisons, error_log) = process_batch_mash(lock, to_process, error_log, relatedness_bucket, species, cutoff)
+
+    error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token, "msh")
+
+    error_log = clean_up(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
+    error_log = remove_batch(lock, batch, error_log, species, api_url, api_token, relatedness_bucket, "msh")
+
+    release_lock(lock, error_log, species, api_url, api_token)
+
+    emit:
+    error_log
+}
+
+//Ref compress sample & push to bucket
+process mash_sketch {
+    container "mash:test"
+    cpus 1
+    memory {
+        params.testing == "" ? "2GB" : "1GB"
+    }
+
+    pod label: "name", value: "fn5_pipeline:mash_sketch"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
+    input:
+    path sample
+    val species
+    val api_url
+    val api_token
+    path relatedness_bucket
+    path ref_fasta
+
+    output:
+    path "guid"
+
+    script:
+    """
+    if [ ${workflow.profile} == 'kubernetes' ]
+    then
+        #Use the secret if running via k8s
+        API_KEY=\$(cat /etc/nextflow-api-key/nextflow_api_key)
+    else
+        API_KEY="${api_token}"
+    fi
+
+    original_path=\$(pwd)
+    sample_path=\$(pwd)/${sample}
+
+    mv ${sample} ${params.run_id}
+    mash sketch ${params.run_id} -I ${params.run_id}
+    cp ${params.run_id}.msh ${relatedness_bucket}/${species}/to_process/${params.run_id}.msh
+    echo ${params.run_id} > guid
+    """
+
+    stub:
+    """
+    touch guid
+    echo "Mash sketch completed for sample ${params.sample}"
+    """
+}
 
 //Ref compress sample & push to bucket
 process reference_compress {
@@ -402,6 +488,7 @@ process get_saves {
     val api_url
     val api_token
     path relatedness_bucket
+    val save_suffix
 
     output:
     path "to_process/*", emit: to_process
@@ -436,7 +523,7 @@ process get_saves {
 
     #Fetch the batch
     for f in \$(cat ${batch}); do
-        cp ${relatedness_bucket}/${species}/to_process/\$f.tar.gz to_process/\$f.tar.gz
+        cp ${relatedness_bucket}/${species}/to_process/\$f.${save_suffix} to_process/\$f.${save_suffix}
     done
     """
 
@@ -447,6 +534,110 @@ process get_saves {
     echo Got saves
     """
 }
+
+//Do comparisons
+process process_batch_mash {
+    container "mash:test"
+    cpus {
+        params.testing == "" ? 6 : 1
+    }
+    memory {
+        params.testing == "" ? "32GB" : "1GB"
+    }
+
+    pod label: "name", value: "fn5_pipeline:process_batch_mash"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
+    input:
+    path lock
+    path to_process
+    path error_log
+    path relatedness_bucket
+    val species
+    val cutoff
+
+    output:
+    path "comparisons.txt"
+    path error_log
+
+    script:
+    """
+    original_path=\$(pwd)
+    trap add_to_error_log SIGINT SIGTERM ERR
+
+    function add_to_error_log(){
+        echo -e 'Failed to process batch' >> \$original_path/${error_log}
+        echo -e '${to_process} \n' >> \$original_path/${error_log}
+        touch \$original_path/comparisons.txt
+        exit 0
+    }
+
+    if [ -s ${error_log} ]; then
+        #Error occured upstream so skip this step
+        echo 'Skipped process_batch' >> ${error_log}
+        touch comparisons.txt
+        exit 0
+    fi
+    if ! [ -s ${lock} ]; then
+        #Sample in batch rather than lock table, so exit
+        touch comparisons.txt
+        exit 0
+    fi
+
+
+    # Check if we have up to date saves in both the bucket and PVC
+    # Merging the saves as required to ensure both are up to date
+    # Use the PVC for actual computation though for speed
+
+    # Ideally, this shouldn't need to do anything, but check anyway
+    mkdir -p /workspace/relatedness-saves/${species}
+
+    # This could take ~20s but worth it for the check
+    ls \$original_path/${relatedness_bucket}/${species}/saves > bucket-saves.txt
+    ls /workspace/relatedness-saves/${species} > pvc-saves.txt
+
+    # Check if there's any bucket saves we haven't got yet
+    # This is a neat way to get set difference of files https://stackoverflow.com/a/13038235
+    sort bucket-saves.txt pvc-saves.txt pvc-saves.txt | uniq -u > not-in-pvc.txt
+    sort pvc-saves.txt bucket-saves.txt bucket-saves.txt | uniq -u > not-in-bucket.txt
+
+    # Sync the PVC with the bucket
+    for filename in \$(cat not-in-pvc.txt); do
+        cp \$original_path/${relatedness_bucket}/${species}/saves/\$filename /workspace/relatedness-saves/${species}
+    done
+
+    # Sync the bucket with the PVC - this should only do stuff if there was an error
+    for filename in \$(cat not-in-bucket.txt); do
+        cp /workspace/relatedness-saves/${species}/\$filename \$original_path/${relatedness_bucket}/${species}/saves/
+    done
+
+    # Mash is not designed for the incremental building of matricies
+    # So we have to figure out which comparisons are needed 
+    for index_sample in \$(echo ${to_process});
+    do
+        for existing_save in \$(ls /workspace/relatedness-saves/${species});
+        do
+            # Add the distance
+            mash dist \$index_sample \$existing_save | cut -d \$'\t' -f 1,2,3 >> comparisons.txt
+
+            # Copy the index sample to the saves directory so they're included downstream
+            cp -f \$index_sample /workspace/relatedness-saves/${species}/
+            cp -f \$index_sample \$original_path/${relatedness_bucket}/${species}/saves/
+        done
+    done
+
+    # Mash outputs tab separated, but we expect space separated upstream
+    sed -i "s/\\t/ /g" comparisons.txt
+    """
+
+    stub:
+    """
+    touch comparisons.txt
+    echo Processed batch
+    """
+}
+
 
 //Do comparisons
 process process_batch {
@@ -541,27 +732,6 @@ process process_batch {
 
     cp -f batch/* \$original_path/${relatedness_bucket}/${species}/saves
     cp -f batch/* /workspace/relatedness-saves/${species}
-
-    #TODO: REMOVE ONCE DEPLOYED TO ALL ENVS
-    # At this point, everything on the PVC should be new-style saves
-    # So clear sync new-style saves to the bucket and old-style saves from the bucket (if existing)
-    # This shouldn't add much (significant) overhead if there's no old-style saves
-
-    ls /workspace/relatedness-saves/${species} > \$original_path/pvc-saves2.txt
-    sort \$original_path/pvc-saves2.txt \$original_path/bucket-saves.txt \$original_path/bucket-saves.txt | uniq -u > \$original_path/not-in-bucket2.txt
-
-    # Sync the bucket with the PVC now that the PVC should only contain new-style saves
-    for filename in \$(cat \$original_path/not-in-bucket2.txt); do
-        cp /workspace/relatedness-saves/${species}/\$filename \$original_path/${relatedness_bucket}/${species}/saves/
-    done
-
-    # Remove old-style saves from the bucket
-    for save in \$(cat \$original_path/bucket-saves.txt); do
-        if [[ \$save == *.fn5 ]]; then
-            continue
-        fi
-        rm \$original_path/${relatedness_bucket}/${species}/saves/\$save
-    done
     """
 
     stub:
@@ -591,6 +761,7 @@ process add_to_db {
     val species
     val api_url
     val api_token
+    val save_suffix
 
     output:
     path error_log
@@ -626,7 +797,7 @@ process add_to_db {
     to_process=\$(echo ${to_process})
     for f in \$(echo \${to_process});
     do
-        guid=\$(python3 -c "print('\$f'.replace('.tar.gz', ''))")
+        guid=\$(python3 -c "print('\$f'.replace('.${save_suffix}', ''))")
         if [ \$(cat ${comparisons} | grep \$guid | wc -l) -eq 0  ]; then
             echo \$guid \$guid -1 >> ${comparisons}
         fi
@@ -737,6 +908,7 @@ process remove_batch {
     val api_url
     val api_token
     path relatedness_bucket
+    val save_suffix
 
     output:
     path error_log
@@ -765,7 +937,7 @@ process remove_batch {
 
     for line in \$(cat ${batch});
     do
-        rm ${relatedness_bucket}/${species}/to_process/\$line.tar.gz
+        rm ${relatedness_bucket}/${species}/to_process/\$line.${save_suffix}
     done
     """
 
