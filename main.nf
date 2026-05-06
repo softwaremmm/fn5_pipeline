@@ -19,6 +19,7 @@ workflow {
             --api_url            URL for the GPAS API
             --api_token          Access token for the API
             --relatedness_bucket Path to the relatedness bucket. Default = '${projectDir}/data/relatedness' for local runnning
+            --pvc_saves          Path to the PVC saves directory. Default = '${projectDir}/data/pvc_saves' for local running
             --ref_fasta          Path to the reference FASTA file
             --mask               Path to the genome mask file
             --cutoff             Cutoff for the distance calculation
@@ -42,6 +43,7 @@ workflow {
         --species            ${params.species}
         --api_url            ${params.api_url}
         --relatedness_bucket ${params.relatedness_bucket}
+        --pvc_saves          ${params.pvc_saves}
         --ref_fasta          ${params.ref_fasta}
         --mask               ${params.mask}
         --cutoff             ${params.cutoff}
