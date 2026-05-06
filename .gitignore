@@ -20,3 +20,4 @@ test/actual_distances
 
 #Keep out local bucket data too
 data/**
+dummy_pvc/**

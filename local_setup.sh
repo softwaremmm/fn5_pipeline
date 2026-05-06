@@ -14,3 +14,4 @@ mkdir -p data/relatedness/test2
 mkdir -p data/relatedness/test2/to_process
 mkdir -p data/relatedness/test2/saves
 
+mkdir -p dummy_pvc/relatedness-saves
