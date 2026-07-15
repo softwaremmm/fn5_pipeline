@@ -69,7 +69,7 @@ jobs:
         git config --global user.name "gpas-github-bot"
 
         #Get the gpas repo and set it up
-        git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/pathogena-portal.git
+        git clone https://${{secrets.PAT_TOKEN}}@github.com/softwaremmm/pathogena-portal.git
 
         cd pathogena-portal
 
