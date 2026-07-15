@@ -1,9 +1,9 @@
 #!/bin/bash
 set -x
 
-#Insert the minimal data required to allow FN5 runs
+#Insert the minimal data required to allow FN6 runs
 #This is somewhat hacky - all of the runs here are the same sample, 
-#   but as FN5 is the only part we care about, it's fine
+#   but as FN6 is the only part we care about, it's fine
 
 #Choosing to use the API via curl for this rather than direct DB access as it's probably a little more stable
 
