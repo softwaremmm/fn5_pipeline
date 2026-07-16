@@ -198,7 +198,7 @@ process check_lock {
     #If this sample failed QC, mark it as failed in the distances table
     #And provide an empty lock to skip rest of computation
     if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
-        g=\$(echo "\$guid" | tail -n 1)
+        g=\$(echo "\$guid" | cut -d " " -f 2 | tr -d "|")
         echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
 
         curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
