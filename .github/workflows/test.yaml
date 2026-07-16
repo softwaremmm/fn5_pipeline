@@ -42,4 +42,4 @@ jobs:
         python3.11 test/build-test-set.py
 
         #Run tests
-        sudo bash test/test.sh
+        sudo bash test/test.sh ${{secrets.API_KEY}} ${{vars.SAMPLE_ID}}
