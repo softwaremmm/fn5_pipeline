@@ -1,3 +1,8 @@
+## Unreleased
+
+### Breaking
+- Deprecating FN5 in favour of FN6
+
 ## 2.0.2 (2024-11-11)
 
 ### Fix

@@ -9,37 +9,12 @@ jobs:
   test:
     name: Run tests
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: gpas
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
-        token: "${{ secrets.PAT_TOKEN }}"
         fetch-depth: 0
-
-    - name: Install SOPS
-      run: |
-        sudo apt-get update && sudo apt-get install age -y
-        # Download the binary
-        curl -LO https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.amd64
-        mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops
-        chmod +x /usr/local/bin/sops
-        mkdir -p ~/.config/sops/age
-        echo "${{ secrets.AGE_DEV_KEY }}" > "$HOME/.config/sops/age/keys.txt"
 
     - name: Setup and run tests
       run: |
@@ -48,58 +23,16 @@ jobs:
         sudo apt update
         sudo apt install -y git curl openjdk-17-jdk jq python3 python3-dev
 
-        #Docker login so we can pull. Both with and without sudo for `[sudo] nextflow run`
-        docker login lhr.ocir.io -u ${{secrets.OCR_USERNAME}} -p $(echo "${{secrets.OCR_TOKEN}}")
-        sudo docker login lhr.ocir.io -u ${{secrets.OCR_USERNAME}} -p $(echo "${{secrets.OCR_TOKEN}}")
-
-        #Install python 3.11
-        sudo apt install wget build-essential libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev
-        sudo add-apt-repository ppa:deadsnakes/ppa
-        sudo apt install python3.11 python3.11-dev
-
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-
         #Install Nextflow
         curl -s https://get.nextflow.io | bash 2> /dev/null
         chmod a+x nextflow
         cp nextflow /usr/local/bin
 
-        #Git setup
-        git config --global user.email "it-support@gpas.global"
-        git config --global user.name "gpas-github-bot"
+        #Build test cases with known distances
+        python3 test/build-test-set.py
 
-        #Get the gpas repo and set it up
-        git clone https://${{secrets.PAT_TOKEN}}@github.com/GlobalPathogenAnalysisService/pathogena-portal.git
-
-        cd pathogena-portal
-
-        uv sync
-        source .venv/bin/activate
-
-        #Setup the API
-        #Note that as this runs in the bg, it doesn't always start in order here
-        export SHOULD_RUN_MIGRATIONS="TRUE"
-        python3.12 -m gpas.api > uv-serve.log 2>&1  &
-        sleep 10
-        echo Started API
-
-        #Give it some data and check we can access
-        python3.12 ./priv/bootstrap_db.py
-        cd ..
-
+        # Setup local file structure
         bash local_setup.sh
 
-        #Ensure we have enough runs to test what we want
-        bash test/bootstrap.sh
-
-        #Build test cases with known distances
-        python3.11 test/build-test-set.py
-
-        #Run without queuing
-        bash test/run-synchronous.sh
-
-        #Run with queuing
-        sudo bash test/run-asynchronous.sh
-
-        #Test it produces expected results
-        bash test/test-eq.sh
+        #Run tests
+        sudo bash test/test.sh "${{secrets.API_KEY}}" ${{vars.SAMPLE_ID}}
