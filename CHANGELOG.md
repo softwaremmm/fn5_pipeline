@@ -1,4 +1,4 @@
-## Unreleased
+## 3.0.0
 
 ### Breaking
 - Deprecating FN5 in favour of FN6
