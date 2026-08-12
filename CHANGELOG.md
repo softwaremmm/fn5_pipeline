@@ -1,3 +1,8 @@
+## 3.0.0
+
+### Breaking
+- Deprecating FN5 in favour of FN6
+
 ## 2.1.1
 
 - chore: Parameterise container prefix

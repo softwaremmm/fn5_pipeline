@@ -8,7 +8,7 @@ workflow {
         log.info(
             """
             ========================================================================
-            Find Neighbour 5
+            Find Neighbour 6
 
             Fast SNP distance calculation from disk.
 
@@ -19,6 +19,7 @@ workflow {
             --api_url            URL for the GPAS API
             --api_token          Access token for the API
             --relatedness_bucket Path to the relatedness bucket. Default = '${projectDir}/data/relatedness' for local runnning
+            --pvc_saves          Path to the PVC saves directory. Default = '${projectDir}/data/pvc_saves' for local running
             --ref_fasta          Path to the reference FASTA file
             --mask               Path to the genome mask file
             --cutoff             Cutoff for the distance calculation
@@ -34,7 +35,7 @@ workflow {
     log.info(
         """
         ========================================================================
-        Find Neighbour 5
+        Find Neighbour 6
 
         Parameters used:
         ------------------------------------------------------------------------
@@ -42,6 +43,7 @@ workflow {
         --species            ${params.species}
         --api_url            ${params.api_url}
         --relatedness_bucket ${params.relatedness_bucket}
+        --pvc_saves          ${params.pvc_saves}
         --ref_fasta          ${params.ref_fasta}
         --mask               ${params.mask}
         --cutoff             ${params.cutoff}
@@ -54,28 +56,29 @@ workflow {
         """.stripIndent()
     )
 
-    find_neighbour_5(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.ref_fasta, params.mask, params.cutoff)
+    find_neighbour_6(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.pvc_saves, params.ref_fasta, params.mask, params.cutoff)
 }
 
 //Split into separate workflow to enable importing
-workflow find_neighbour_5 {
+workflow find_neighbour_6 {
     take:
     sample
     species
     api_url
     api_token
     relatedness_bucket
+    pvc_saves
     ref_fasta
     mask
     cutoff
 
     main:
     /**
-        Error handling here is obviously not as neat I'd like it,
-        but Nextflow doesn't support try/catch to call another process
-        so in absence of a neat solution, use of `trap` and percolating an error log
-        works, but definitely isn't ideal.
-        */
+    Error handling here is obviously not as neat I'd like it,
+    but Nextflow doesn't support try/catch to call another process
+    so in absence of a neat solution, use of `trap` and percolating an error log
+    works, but definitely isn't ideal.
+    */
 
     guid = reference_compress(sample, species, api_url, api_token, relatedness_bucket, ref_fasta, mask)
     lock = check_lock(guid, species, api_url, api_token)
@@ -85,7 +88,7 @@ workflow find_neighbour_5 {
     (batch, error_log) = get_batch(guid, lock, error_log, species, api_url, api_token)
     (to_process, error_log) = get_saves(lock, batch, error_log, species, api_url, api_token, relatedness_bucket)
 
-    (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, species, cutoff)
+    (comparisons, error_log) = process_batch(lock, to_process, error_log, relatedness_bucket, pvc_saves, species, cutoff)
 
     error_log = add_to_db(to_process, comparisons, lock, error_log, species, api_url, api_token)
 
@@ -101,13 +104,13 @@ workflow find_neighbour_5 {
 
 //Ref compress sample & push to bucket
 process reference_compress {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:reference_compress"
+    pod label: "name", value: "fn6_pipeline:reference_compress"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -136,11 +139,7 @@ process reference_compress {
     original_path=\$(pwd)
     sample_path=\$(pwd)/${sample}
 
-    cd /FN5
-
-    mkdir -p sample-out
-
-    guid=\$(./fn5 --reference_compress \$sample_path --guid ${params.run_id} --saves_dir sample-out --reference \$original_path/${ref_fasta} --mask \$original_path/${mask})
+    guid=\$(fn6 reference-compress \$original_path/${ref_fasta} \$sample_path \$original_path/${mask} --id ${params.run_id} --output ${params.run_id}.fn6)
 
     #Check if this was a QC fail or not
     if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
@@ -150,10 +149,7 @@ process reference_compress {
         exit 0
     fi
 
-    cd sample-out
-    tar --use-compress-program=pigz -cf \$(echo \$guid).tar.gz ./*
-
-    cp \$(echo \$guid).tar.gz \$original_path/${relatedness_bucket}/${species}/to_process/
+    cp ${params.run_id}.fn6 \$original_path/${relatedness_bucket}/${species}/to_process/
 
     echo \$guid > \$original_path/guid
     """
@@ -167,13 +163,13 @@ process reference_compress {
 
 //Check lock
 process check_lock {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:check_lock"
+    pod label: "name", value: "fn6_pipeline:check_lock"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -199,12 +195,10 @@ process check_lock {
     original_path=\$(pwd)
     guid=\$(cat ${guid})
 
-    cd /FN5
-
     #If this sample failed QC, mark it as failed in the distances table
     #And provide an empty lock to skip rest of computation
     if [[ \$(echo \$guid | grep -E "\\|\\|QC_FAIL: .+\\|\\|" | wc -l) -eq 1 ]]; then
-        g=\$(echo "\$guid" | tail -n 1)
+        g=\$(echo "\$guid" | cut -d " " -f 2 | tr -d "|")
         echo "\$g ||QC_FAIL|| -1" > qc_fail_comparison.txt
 
         curl -SsL --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
@@ -229,12 +223,6 @@ process check_lock {
     #The lock is the literal string 'null' if added to batch
     echo null > trial_lock
     cmp --silent \$original_path/lock trial_lock && (echo lock was null && rm \$original_path/lock && touch \$original_path/lock) || (echo lock was not null && cat \$original_path/lock)
-
-    #Because strings are null byte terminated, this will give a file containing 1 null byte if added to batch
-    #Catch this and make it empty
-    #echo -e "" > null_byte.txt
-    #This needs the `||` clause or it exits with an error
-    #cmp --silent \$original_path/lock null_byte.txt && \$(rm \$original_path/lock && touch \$original_path/lock) || cat \$original_path/lock
     """
 
     stub:
@@ -246,13 +234,13 @@ process check_lock {
 
 //Wait for lock
 process wait_for_lock {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:wait_for_lock"
+    pod label: "name", value: "fn6_pipeline:wait_for_lock"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -313,13 +301,13 @@ process wait_for_lock {
 
 //Get batch
 process get_batch {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:get_batch"
+    pod label: "name", value: "fn6_pipeline:get_batch"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -384,13 +372,13 @@ process get_batch {
 
 //Pull saves from bucket
 process get_saves {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "3GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:get_saves"
+    pod label: "name", value: "fn6_pipeline:get_saves"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -436,21 +424,21 @@ process get_saves {
 
     #Fetch the batch
     for f in \$(cat ${batch}); do
-        cp ${relatedness_bucket}/${species}/to_process/\$f.tar.gz to_process/\$f.tar.gz
+        cp ${relatedness_bucket}/${species}/to_process/\$f.* to_process/
     done
     """
 
     stub:
     """
     mkdir -p to_process
-    touch to_process/filename.tar.gz
+    touch to_process/filename.fn6
     echo Got saves
     """
 }
 
 //Do comparisons
 process process_batch {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus {
         params.testing == "" ? 6 : 1
     }
@@ -458,7 +446,7 @@ process process_batch {
         params.testing == "" ? "32GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:process_batch"
+    pod label: "name", value: "fn6_pipeline:process_batch"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -467,6 +455,7 @@ process process_batch {
     path to_process
     path error_log
     path relatedness_bucket
+    path pvc_saves
     val species
     val cutoff
 
@@ -498,8 +487,8 @@ process process_batch {
         exit 0
     fi
 
-    mkdir -p /FN5/batch
-    mkdir -p /FN5/saves
+    mkdir -p batch
+    mkdir -p existing-saves
 
 
     # Check if we have up to date saves in both the bucket and PVC
@@ -507,11 +496,11 @@ process process_batch {
     # Use the PVC for actual computation though for speed
 
     # Ideally, this shouldn't need to do anything, but check anyway
-    mkdir -p /workspace/relatedness-saves/${species}
+    mkdir -p ${pvc_saves}/${species}
 
     # This could take ~20s but worth it for the check
     ls \$original_path/${relatedness_bucket}/${species}/saves > bucket-saves.txt
-    ls /workspace/relatedness-saves/${species} > pvc-saves.txt
+    ls ${pvc_saves}/${species} > pvc-saves.txt
 
     # Check if there's any bucket saves we haven't got yet
     # This is a neat way to get set difference of files https://stackoverflow.com/a/13038235
@@ -520,48 +509,31 @@ process process_batch {
 
     # Sync the PVC with the bucket
     for filename in \$(cat not-in-pvc.txt); do
-        cp \$original_path/${relatedness_bucket}/${species}/saves/\$filename /workspace/relatedness-saves/${species}
+        cp \$original_path/${relatedness_bucket}/${species}/saves/\$filename ${pvc_saves}/${species}
     done
 
     # Sync the bucket with the PVC - this should only do stuff if there was an error
     for filename in \$(cat not-in-bucket.txt); do
-        cp /workspace/relatedness-saves/${species}/\$filename \$original_path/${relatedness_bucket}/${species}/saves/
+        cp ${pvc_saves}/${species}/\$filename \$original_path/${relatedness_bucket}/${species}/saves/
     done
 
     #Decompress all of the samples in this batch
     to_process=\$(echo ${to_process})
     for f in \$(echo \${to_process});
     do
-        tar --use-compress-program=pigz -xf \$f -C /FN5/batch
+        if [ "\$f" == "*.tar.gz" ]; then
+            tar --use-compress-program=pigz -xf \$f -C batch/
+        else
+            cp \$f batch/
+        fi
     done
 
-    cd /FN5
 
-    ./fn5 --add_batch batch --cutoff ${cutoff} --saves_dir /workspace/relatedness-saves/${species} > \$original_path/comparisons.txt
+    fn6 add-samples --existing-directory ${pvc_saves}/${species} --new-directory batch --cutoff ${cutoff} --output \$original_path/comparisons.txt
+
 
     cp -f batch/* \$original_path/${relatedness_bucket}/${species}/saves
-    cp -f batch/* /workspace/relatedness-saves/${species}
-
-    #TODO: REMOVE ONCE DEPLOYED TO ALL ENVS
-    # At this point, everything on the PVC should be new-style saves
-    # So clear sync new-style saves to the bucket and old-style saves from the bucket (if existing)
-    # This shouldn't add much (significant) overhead if there's no old-style saves
-
-    ls /workspace/relatedness-saves/${species} > \$original_path/pvc-saves2.txt
-    sort \$original_path/pvc-saves2.txt \$original_path/bucket-saves.txt \$original_path/bucket-saves.txt | uniq -u > \$original_path/not-in-bucket2.txt
-
-    # Sync the bucket with the PVC now that the PVC should only contain new-style saves
-    for filename in \$(cat \$original_path/not-in-bucket2.txt); do
-        cp /workspace/relatedness-saves/${species}/\$filename \$original_path/${relatedness_bucket}/${species}/saves/
-    done
-
-    # Remove old-style saves from the bucket
-    for save in \$(cat \$original_path/bucket-saves.txt); do
-        if [[ \$save == *.fn5 ]]; then
-            continue
-        fi
-        rm \$original_path/${relatedness_bucket}/${species}/saves/\$save
-    done
+    cp -f batch/* ${pvc_saves}/${species}
     """
 
     stub:
@@ -573,13 +545,13 @@ process process_batch {
 
 //Add to DB
 process add_to_db {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:add_to_db"
+    pod label: "name", value: "fn6_pipeline:add_to_db"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -626,14 +598,13 @@ process add_to_db {
     to_process=\$(echo ${to_process})
     for f in \$(echo \${to_process});
     do
-        guid=\$(python3 -c "print('\$f'.replace('.tar.gz', ''))")
+        guid=\$(echo \$f | rev | cut -d "/" -f1 | rev | cut -d "." -f1)
         if [ \$(cat ${comparisons} | grep \$guid | wc -l) -eq 0  ]; then
             echo \$guid \$guid -1 >> ${comparisons}
         fi
     done
 
     #Add to DB
-
     curl --fail --show-error --retry-all-errors --retry 5 --retry-delay 20 -X 'POST' \
         '${api_url}/api/v1/relatedness/${species}/db/add_distances' \
         -H 'accept: application/json' \
@@ -650,13 +621,13 @@ process add_to_db {
 
 //Update bucket
 process clean_up {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:clean_up"
+    pod label: "name", value: "fn6_pipeline:clean_up"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -719,13 +690,13 @@ process clean_up {
 }
 
 process remove_batch {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:remove_batch"
+    pod label: "name", value: "fn6_pipeline:remove_batch"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -765,7 +736,7 @@ process remove_batch {
 
     for line in \$(cat ${batch});
     do
-        rm ${relatedness_bucket}/${species}/to_process/\$line.tar.gz
+        rm ${relatedness_bucket}/${species}/to_process/\$line.*
     done
     """
 
@@ -777,13 +748,13 @@ process remove_batch {
 
 //Release lock
 process release_lock {
-    container params.container_prefix + "/oxfordmmm/fn5:v2.0.2"
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
     cpus 1
     memory {
         params.testing == "" ? "2GB" : "1GB"
     }
 
-    pod label: "name", value: "fn5_pipeline:release_lock"
+    pod label: "name", value: "fn6_pipeline:release_lock"
     pod label: "sample_id", value: "${params.sample_id}"
     pod label: "run_id", value: "${params.run_id}"
 
@@ -814,11 +785,6 @@ process release_lock {
         -H 'accept: application/json' \
         -H "Authorization: Basic \$API_KEY" \
 
-    #if [ -s ${error_log} ]; then
-    #    #Error occured upstream so now we have released the lock, throw it
-    #    cat ${error_log} > /dev/stderr
-    #    exit 1
-    #fi
     """
 
     stub:
