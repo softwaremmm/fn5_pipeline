@@ -27,11 +27,6 @@ workflow {
         )
         exit(0)
     }
-
-    if (params.sample == '') {
-        log.info('No sample given, aborting!')
-        exit(1)
-    }
     log.info(
         """
         ========================================================================
@@ -55,8 +50,25 @@ workflow {
         Launch directory      ${ANSI_GREEN}${workflow.launchDir}${ANSI_RESET}
         """.stripIndent()
     )
+    if (params.local != "") {
+        
+        samples = channel.fromPath("${params.samples}/*.fasta", checkIfExists: true, glob: true)
+            .ifEmpty { error("cannot find any reads matching ${params.samples}") }
+            .map { it -> tuple(it.baseName.replace(".fasta", ""), it) }
+        samples.take(3).view()
 
-    find_neighbour_6(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.pvc_saves, params.ref_fasta, params.mask, params.cutoff)
+        existing_saves = channel.fromPath("${params.existing_saves}", checkIfExists: true).first()
+        ref_fasta = channel.fromPath("${params.ref_fasta}", checkIfExists: true).first()
+        mask = channel.fromPath("${params.mask}", checkIfExists: true).first()
+
+        local_find_neighbour_6(samples, ref_fasta, mask, params.cutoff, existing_saves)
+    } else {
+        if (params.sample == '') {
+            log.info('No sample given, aborting!')
+            exit(1)
+        }
+        find_neighbour_6(params.sample, params.species, params.api_url, params.api_token, params.relatedness_bucket, params.pvc_saves, params.ref_fasta, params.mask, params.cutoff)
+    }
 }
 
 //Split into separate workflow to enable importing
@@ -101,6 +113,69 @@ workflow find_neighbour_6 {
     error_log
 }
 
+workflow local_find_neighbour_6 {
+    take:
+    samples
+    ref_fasta
+    mask
+    cutoff
+    existing_saves
+
+    main:
+    local_reference_compress(samples, ref_fasta, mask)
+    local_compute(existing_saves, local_reference_compress.out.save.collect(), cutoff)
+}
+
+
+process local_reference_compress {
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
+    cpus 1
+    memory "1GB"
+
+    pod label: "name", value: "fn6_pipeline:reference_compress"
+    pod label: "sample_id", value: "${params.sample_id}"
+    pod label: "run_id", value: "${params.run_id}"
+
+    input:
+    tuple val(sample), path(fasta)
+    path ref_fasta
+    path mask
+
+    output:
+    path("${sample}.fn6"), emit: save
+
+    script:
+    """
+    fn6 reference-compress ${ref_fasta} ${fasta} ${mask} --id ${sample} --output ${sample}.fn6
+    """
+}
+
+
+process local_compute {
+    publishDir "${params.publish_dir}", enabled: params.publish_dir != "", mode: "copy", saveAs: { filename -> filename }
+    container params.container_prefix + "/oxfordmmm/fn6:0.1.3"
+    cpus 4
+    memory "8GB"
+
+    input:
+    path existing_saves
+    path new_saves
+    val cutoff
+
+    output:
+    path("distances.txt"), emit: distances
+
+    script:
+    """
+    mkdir -p new_saves_dir
+    for f in ${new_saves}; do
+        cp \$f new_saves_dir/
+    done
+    fn6 add-samples --existing-directory ${existing_saves} --new-directory new_saves_dir --cutoff ${cutoff} --output distances.txt
+
+    mv new_saves_dir/* ${existing_saves}/
+    """
+}
 
 //Ref compress sample & push to bucket
 process reference_compress {
