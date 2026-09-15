@@ -1,8 +1,18 @@
-> [!CAUTION]
-> If you are not an MMM developer, you cannot run this standalone due to dependence on our API.
-
 # fn6_pipeline
-Nextflow wrapper for FN6. Enables auto-queuing and auto-batching of samples for performance gains.
+Nextflow wrapper for FN6. 
+
+# Local
+Given a directory of existing FN6 saves, compute additional new distances for given files.
+
+```bash
+nextflow run . -profile docker --local true --samples path/to/new/sample/fastas --existing_saves path/to/existing/fn6/saves --ref_fasta path/to/reference/fasta --mask path/to/exclusion/mask --cutoff 20 --publish_dir path/to/output/directory
+```
+
+# Development
+> [!CAUTION]
+> If you are not an MMM developer, you cannot run in this mode due to dependence on our API.
+
+Enables auto-queuing and auto-batching of samples for performance gains.
 
 ## Running locally with docker
 Requires an API to be running to handle database and bucket operations. Run `bash local_setup.sh` on first run to ensure the expected bucket structure exists.
