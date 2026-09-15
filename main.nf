@@ -132,10 +132,6 @@ process local_reference_compress {
     cpus 1
     memory "1GB"
 
-    pod label: "name", value: "fn6_pipeline:reference_compress"
-    pod label: "sample_id", value: "${params.sample_id}"
-    pod label: "run_id", value: "${params.run_id}"
-
     input:
     tuple val(sample), path(fasta)
     path ref_fasta
