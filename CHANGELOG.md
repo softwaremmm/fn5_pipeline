@@ -1,3 +1,10 @@
+## New
+
+### Fix
+
+- Enable local running with a separate workflow
+- Use FN6 0.2.2 to ensure output files are written correctly
+
 ## 3.0.0
 
 ### Breaking
