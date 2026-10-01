@@ -133,7 +133,7 @@ process local_reference_compress {
     memory "1GB"
 
     input:
-    tuple val(sample), path(fasta)
+    tuple val(sample), val(species), path(fasta)
     path ref_fasta
     path mask
 
