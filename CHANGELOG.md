@@ -1,3 +1,7 @@
+## New
+
+- Fix `local_reference_compress` input (local running only)
+
 ## 3.0.1
 
 ### Fix
